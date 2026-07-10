@@ -1,12 +1,13 @@
 import type { BootLine } from '@/lib/terminal/useBootSequence'
 
-export const BOOT_SCRIPT: BootLine[] = [
-  { delay: 1100, text: 'MU/TH/UR 6000  65535K CORE MEMORY' },
-  { delay: 550, text: 'WEYLAN YUTANI SYSTEMS  //  USCSS NOSTROMO 180924609' },
-  { delay: 900, text: '' },
-  { delay: 650, text: 'DIAGNOSTIC: ALL SYSTEMS NOMINAL' },
-  { delay: 450, text: '' },
-  { delay: 850, text: 'INTERFACE 2037 READY FOR INQUIRY' },
+/**
+ * Shown after the overmonitoring matrix settles. In the film this is a
+ * separate display (Ripley's session); here it follows the wake-up so the
+ * exhibit stays usable.
+ */
+export const INTERFACE_SCRIPT: BootLine[] = [
+  { delay: 700, text: '' },
+  { delay: 600, text: 'INTERFACE 2037 READY FOR INQUIRY' },
   { delay: 450, text: '' },
 ]
 

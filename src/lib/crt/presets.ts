@@ -11,7 +11,7 @@ export const crtPresets = {
     scanlineIntensity: 0.28,
     scanlineCount: 0,
     phosphor: 1,
-    tint: '#59ff7f',
+    tint: '#4fff9e',
     noise: 0.07,
     flicker: 0.02,
     vignette: 0.4,

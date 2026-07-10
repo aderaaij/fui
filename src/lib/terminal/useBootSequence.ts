@@ -6,11 +6,12 @@ export interface BootLine {
   text: string
 }
 
-/** Plays a scripted boot sequence, one line at a time. */
-export function useBootSequence(script: BootLine[]) {
+/** Plays a scripted boot sequence, one line at a time, once `active`. */
+export function useBootSequence(script: BootLine[], active = true) {
   const [count, setCount] = useState(0)
 
   useEffect(() => {
+    if (!active) return
     let cancelled = false
     let timeout: number
     const schedule = (i: number) => {
@@ -26,7 +27,7 @@ export function useBootSequence(script: BootLine[]) {
       window.clearTimeout(timeout)
       setCount(0)
     }
-  }, [script])
+  }, [script, active])
 
   return {
     lines: script.slice(0, count).map((l) => l.text),

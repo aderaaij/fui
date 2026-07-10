@@ -16,9 +16,10 @@ export const exhibits: ExhibitMeta[] = [
     status: 'online',
     component: lazy(() => import('./muthur')),
     accuracyNotes: [
-      'The film shot live 1979 CRTs; phosphor color, curvature, bloom and scanlines here are a shader approximation tuned against screenshots.',
-      'Typeface is VT323, a DEC VT320 revival — a stand-in until the actual screen font is pinned down (see Typeset in the Future on Alien).',
-      'The boot sequence is invented; the film only ever shows the system mid-session.',
+      "The wake-up recreates the film frame by frame: a raster-noise storm resolving into the OVERMONITORING ADDRESS MATRIX, transcribed verbatim — including the film's own spelling 'ALLIGNMENT'.",
+      "In the film the address matrix and the Interface 2037 inquiry screen are separate displays in MU/TH/UR's core; here the matrix hands off to the inquiry screen so the exhibit stays usable.",
+      "The film shot live 1979 CRTs; phosphor color, glow smears, curvature and scanlines are shader approximations tuned against the reference frames.",
+      "Typeface is VT323, a DEC VT320 revival — the film's wider, machined face is still unidentified; tracking is widened to approximate it.",
       'MU/TH/UR answers a small set of inquiries, as in the film. Ask her about Special Order 937.',
     ],
   },

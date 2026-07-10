@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# reference footage for animation analysis (copyrighted, stays local)
+reference/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

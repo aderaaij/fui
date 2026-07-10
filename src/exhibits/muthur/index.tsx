@@ -2,12 +2,15 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
+import { AdditiveBlending } from 'three'
 import { CRT } from '@/lib/crt/CRT'
 import { useCRTParams } from '@/lib/crt/useCRTParams'
 import { useBlink } from '@/lib/terminal/useBlink'
 import { useBootSequence } from '@/lib/terminal/useBootSequence'
 import fontUrl from '@/assets/fonts/VT323-Regular.ttf'
-import { BOOT_SCRIPT, respond } from './muthur'
+import { COLS, ROWS } from './matrix'
+import { INTERFACE_SCRIPT, respond } from './muthur'
+import { useMuthurBoot, type Streak } from './useMuthurBoot'
 
 const MAX_ROWS = 16
 const MAX_INPUT = 42
@@ -36,7 +39,9 @@ function Effects() {
 }
 
 function Terminal() {
-  const { lines: bootLines, done: booted } = useBootSequence(BOOT_SCRIPT)
+  const boot = useMuthurBoot()
+  const ready = boot.phase === 'ready'
+  const { lines: introLines, done: online } = useBootSequence(INTERFACE_SCRIPT, ready)
   const [session, setSession] = useState<string[]>([])
   const [input, setInput] = useState('')
   const [pending, setPending] = useState(false)
@@ -50,7 +55,7 @@ function Terminal() {
   useEffect(() => () => window.clearTimeout(replyTimeout.current), [])
 
   useEffect(() => {
-    if (!booted) return
+    if (!online) return
     const editInput = (edit: (v: string) => string) => {
       inputRef.current = edit(inputRef.current)
       setInput(inputRef.current)
@@ -77,17 +82,29 @@ function Terminal() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [booted])
+  }, [online])
 
-  const rows = [...bootLines, ...session].slice(-MAX_ROWS)
-  const promptRow = booted && !pending ? `\n> ${input}${cursorOn ? '█' : ' '}` : ''
+  if (!ready) {
+    return (
+      <>
+        <Screen text={boot.text} />
+        <Streaks streaks={boot.streaks} />
+      </>
+    )
+  }
+
+  const rows = [...introLines, ...session].slice(-MAX_ROWS)
+  const promptRow = online && !pending ? `\n> ${input}${cursorOn ? '█' : ' '}` : ''
   return <Screen text={rows.join('\n') + promptRow} />
 }
 
 function Screen({ text }: { text: string }) {
   const viewport = useThree((s) => s.viewport)
-  const fontSize = viewport.height / 21
-  const margin = fontSize * 1.2
+  const margin = viewport.width * 0.05
+  const availW = viewport.width - margin * 2
+  const availH = viewport.height - margin * 2
+  // Fit the boot grid: ROWS lines tall, COLS monospace cells wide
+  const fontSize = Math.min(availH / (ROWS * 1.32), availW / (COLS * 0.58))
   return (
     <Text
       font={fontUrl}
@@ -95,13 +112,53 @@ function Screen({ text }: { text: string }) {
       color="#ffffff"
       anchorX="left"
       anchorY="top"
-      lineHeight={1.1}
-      letterSpacing={0.02}
-      maxWidth={viewport.width - margin * 2}
-      overflowWrap="break-word"
-      position={[-viewport.width / 2 + margin, viewport.height / 2 - margin, 0]}
+      lineHeight={1.32}
+      letterSpacing={0.06}
+      whiteSpace="nowrap"
+      position={[-availW / 2, availH / 2, 0]}
     >
       {text}
     </Text>
+  )
+}
+
+const STREAK_COLORS: Record<Streak['kind'], [number, number, number]> = {
+  hair: [2.5, 2.5, 2.5],
+  glow: [0.4, 3, 1.1],
+  hot: [5, 5, 5],
+}
+
+const STREAK_HEIGHTS: Record<Streak['kind'], number> = {
+  hair: 0.004,
+  glow: 0.012,
+  hot: 0.018,
+}
+
+/** The film's horizontal phosphor smears — bright quads fed to Bloom. */
+function Streaks({ streaks }: { streaks: Streak[] }) {
+  const viewport = useThree((s) => s.viewport)
+  return (
+    <group>
+      {streaks.map((s) => (
+        <mesh
+          key={s.id}
+          position={[
+            (s.x + s.w / 2 - 0.5) * viewport.width,
+            (0.5 - s.y) * viewport.height,
+            0.1,
+          ]}
+        >
+          <planeGeometry args={[s.w * viewport.width, STREAK_HEIGHTS[s.kind] * viewport.height]} />
+          <meshBasicMaterial
+            color={STREAK_COLORS[s.kind]}
+            toneMapped={false}
+            transparent
+            opacity={0.9}
+            blending={AdditiveBlending}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
+    </group>
   )
 }
