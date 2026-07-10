@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react'
-import { preloadFont } from 'troika-three-text'
-import fontUrl from '@/assets/fonts/VT323-Regular.ttf'
 import {
   COLS,
   MATRIX_LINES,
@@ -13,22 +11,7 @@ import {
   TITLE_ROW,
 } from './matrix'
 
-// Every glyph the exhibit can display, pre-generated into troika's SDF atlas
-// before the boot clock starts — otherwise the storm plays invisibly while
-// the font worker warms up on a cold load.
-const CHARSET = Array.from(
-  new Set(
-    (
-      STORM_GLYPHS +
-      STORM_FRAGMENTS.join('') +
-      TITLE +
-      MATRIX_LINES.join('') +
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:;()/%!?'-_>█"
-    ).split(''),
-  ),
-).join('')
-
-export type BootPhase = 'storm' | 'resolve' | 'stable' | 'ready'
+export type BootPhase = 'glyph' | 'storm' | 'resolve' | 'stable' | 'ready'
 
 export type StreakKind = 'hair' | 'glow' | 'hot'
 
@@ -41,8 +24,10 @@ export interface Streak {
   kind: StreakKind
 }
 
-// Phase lengths follow the film clip (~4s total: half storm, then the matrix
-// types in, then a stable hold before handing off to Interface 2037).
+// Phase lengths follow the film clips: the circuit-mandala blooms for ~2.5s
+// (muthur-boot-animation), then ~4s of storm/matrix (muthur-boot), then a
+// stable hold before handing off to Interface 2037.
+const GLYPH_MS = 2500
 const STORM_MS = 2100
 const RESOLVE_MS = 1500
 const STABLE_MS = 1400
@@ -142,47 +127,46 @@ function resolveScreen(p: number, schedule: RowSchedule[]): string[] {
  * itself in → stable hold → 'ready' (hand-off to the inquiry interface).
  */
 export function useMuthurBoot() {
-  const [phase, setPhase] = useState<BootPhase>('storm')
+  const [phase, setPhase] = useState<BootPhase>('glyph')
+  const [glyphProgress, setGlyphProgress] = useState(0)
   const [screen, setScreen] = useState<string[]>([])
   const [streaks, setStreaks] = useState<Streak[]>([])
 
   useEffect(() => {
-    let disposed = false
-    let id = 0
-    preloadFont({ font: fontUrl, characters: CHARSET }, () => {
-      if (disposed) return
-      const schedule = makeSchedule()
-      const start = performance.now()
-      id = window.setInterval(() => {
-        const t = performance.now() - start
-        if (t < STORM_MS) {
-          setScreen(stormScreen())
-          setStreaks(makeStreaks(2, 6))
-        } else if (t < STORM_MS + RESOLVE_MS) {
-          const p = (t - STORM_MS) / RESOLVE_MS
-          setPhase('resolve')
-          setScreen(resolveScreen(p, schedule))
-          setStreaks(makeStreaks(0, 3, 1 - p * 0.6))
-        } else if (t < STORM_MS + RESOLVE_MS + STABLE_MS) {
-          setPhase('stable')
-          setScreen(targetScreen())
-          setStreaks(makeStreaks(0, 1, 0.12))
-        } else {
-          window.clearInterval(id)
-          setPhase('ready')
-          setScreen([])
-          setStreaks([])
-        }
-      }, TICK_MS)
-    })
+    const schedule = makeSchedule()
+    const start = performance.now()
+    const id = window.setInterval(() => {
+      const t = performance.now() - start
+      if (t < GLYPH_MS) {
+        setGlyphProgress(t / GLYPH_MS)
+      } else if (t < GLYPH_MS + STORM_MS) {
+        setPhase('storm')
+        setScreen(stormScreen())
+        setStreaks(makeStreaks(2, 6))
+      } else if (t < GLYPH_MS + STORM_MS + RESOLVE_MS) {
+        const p = (t - GLYPH_MS - STORM_MS) / RESOLVE_MS
+        setPhase('resolve')
+        setScreen(resolveScreen(p, schedule))
+        setStreaks(makeStreaks(0, 3, 1 - p * 0.6))
+      } else if (t < GLYPH_MS + STORM_MS + RESOLVE_MS + STABLE_MS) {
+        setPhase('stable')
+        setScreen(targetScreen())
+        setStreaks(makeStreaks(0, 1, 0.12))
+      } else {
+        window.clearInterval(id)
+        setPhase('ready')
+        setScreen([])
+        setStreaks([])
+      }
+    }, TICK_MS)
     return () => {
-      disposed = true
       window.clearInterval(id)
-      setPhase('storm')
+      setPhase('glyph')
+      setGlyphProgress(0)
       setScreen([])
       setStreaks([])
     }
   }, [])
 
-  return { phase, text: screen.join('\n'), streaks }
+  return { phase, glyphProgress, text: screen.join('\n'), streaks }
 }

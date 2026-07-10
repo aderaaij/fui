@@ -16,7 +16,8 @@ export const exhibits: ExhibitMeta[] = [
     status: 'online',
     component: lazy(() => import('./muthur')),
     accuracyNotes: [
-      "The wake-up recreates the film frame by frame: a raster-noise storm resolving into the OVERMONITORING ADDRESS MATRIX, transcribed verbatim — including the film's own spelling 'ALLIGNMENT'.",
+      "The boot opens with the circuit-mandala blooming across MOTHER's monitor; it is regrown procedurally on every boot rather than traced from the film's artwork.",
+      "The wake-up then recreates the film frame by frame: a raster-noise storm resolving into the OVERMONITORING ADDRESS MATRIX, transcribed verbatim — including the film's own spelling 'ALLIGNMENT'.",
       "In the film the address matrix and the Interface 2037 inquiry screen are separate displays in MU/TH/UR's core; here the matrix hands off to the inquiry screen so the exhibit stays usable.",
       "The film shot live 1979 CRTs; phosphor color, glow smears, curvature and scanlines are shader approximations tuned against the reference frames.",
       "Typeface is VT323, a DEC VT320 revival — the film's wider, machined face is still unidentified; tracking is widened to approximate it.",

@@ -9,7 +9,8 @@ import { useCRTParams, useSmearParams } from '@/lib/crt/useCRTParams'
 import { useBlink } from '@/lib/terminal/useBlink'
 import { useBootSequence } from '@/lib/terminal/useBootSequence'
 import fontUrl from '@/assets/fonts/VT323-Regular.ttf'
-import { COLS, ROWS } from './matrix'
+import { CircuitGlyph } from './CircuitGlyph'
+import { CHARSET, COLS, ROWS } from './matrix'
 import { INTERFACE_SCRIPT, respond } from './muthur'
 import { useMuthurBoot, type Streak } from './useMuthurBoot'
 
@@ -86,6 +87,22 @@ function Terminal() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [online])
+
+  if (boot.phase === 'glyph') {
+    return (
+      <>
+        <CircuitGlyph progress={boot.glyphProgress} />
+        {/* Warm the SDF atlas while the glyph plays, so the storm's text
+            renders from its first tick on cold loads. Own boundary so its
+            font load never hides the glyph. */}
+        <Suspense fallback={null}>
+          <Text font={fontUrl} fontSize={0.001} fillOpacity={0} position={[0, 0, -1]}>
+            {CHARSET}
+          </Text>
+        </Suspense>
+      </>
+    )
+  }
 
   if (!ready) {
     return (

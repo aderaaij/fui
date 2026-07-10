@@ -65,3 +65,20 @@ export const STORM_FRAGMENTS = [
 ]
 
 export const STORM_GLYPHS = 'ABCDEFGHILMNORSTVWXYZ0123456789_!'
+
+/**
+ * Every character the exhibit can display. Rendered invisibly during the
+ * circuit-glyph phase so troika generates the full SDF atlas before the
+ * storm needs it — otherwise cold loads play the storm on an empty atlas.
+ */
+export const CHARSET = Array.from(
+  new Set(
+    (
+      STORM_GLYPHS +
+      STORM_FRAGMENTS.join('') +
+      TITLE +
+      MATRIX_LINES.join('') +
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:;()/%!?'-_>█"
+    ).split(''),
+  ),
+).join('')
