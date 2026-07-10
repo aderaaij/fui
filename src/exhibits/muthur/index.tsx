@@ -4,7 +4,8 @@ import { Text } from '@react-three/drei'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import { AdditiveBlending } from 'three'
 import { CRT } from '@/lib/crt/CRT'
-import { useCRTParams } from '@/lib/crt/useCRTParams'
+import { HorizontalSmear } from '@/lib/crt/HorizontalSmear'
+import { useCRTParams, useSmearParams } from '@/lib/crt/useCRTParams'
 import { useBlink } from '@/lib/terminal/useBlink'
 import { useBootSequence } from '@/lib/terminal/useBootSequence'
 import fontUrl from '@/assets/fonts/VT323-Regular.ttf'
@@ -30,9 +31,11 @@ export default function MuthurExhibit() {
 
 function Effects() {
   const crt = useCRTParams('greenPhosphor')
+  const smear = useSmearParams()
   return (
     <EffectComposer>
       <Bloom mipmapBlur intensity={1.15} luminanceThreshold={0.18} luminanceSmoothing={0.35} />
+      <HorizontalSmear {...smear} />
       <CRT {...crt} />
     </EffectComposer>
   )

@@ -1,4 +1,4 @@
-import { BlendFunction, Effect } from 'postprocessing'
+import { BlendFunction, Effect, EffectAttribute } from 'postprocessing'
 import { Color, Uniform } from 'three'
 import fragmentShader from './crt.frag'
 
@@ -27,6 +27,9 @@ export class CRTEffect extends Effect {
   constructor(params: CRTParams) {
     super('CRTEffect', fragmentShader, {
       blendFunction: BlendFunction.NORMAL,
+      // Samples inputBuffer at distorted UVs — must not merge into a pass
+      // with other convolution effects, and needs the composed image as input
+      attributes: EffectAttribute.CONVOLUTION,
       uniforms: new Map<string, Uniform>([
         ['uCurvature', new Uniform(params.curvature)],
         ['uScanlineIntensity', new Uniform(params.scanlineIntensity)],

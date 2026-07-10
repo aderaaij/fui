@@ -1,5 +1,6 @@
 import { useControls } from 'leva'
 import type { CRTParams } from './CRTEffect'
+import { smearDefaults, type SmearParams } from './HorizontalSmearEffect'
 import { crtPresets, type CRTPresetName } from './presets'
 
 /**
@@ -24,4 +25,13 @@ export function useCRTParams(preset: CRTPresetName): CRTParams {
     },
     [preset],
   )
+}
+
+/** Horizontal smear defaults as live Leva controls (dev only). */
+export function useSmearParams(): SmearParams {
+  return useControls('smear', {
+    intensity: { value: smearDefaults.intensity, min: 0, max: 4 },
+    threshold: { value: smearDefaults.threshold, min: 0, max: 3 },
+    length: { value: smearDefaults.length, min: 0, max: 0.4 },
+  })
 }

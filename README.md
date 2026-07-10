@@ -57,8 +57,12 @@ Rules that keep this maintainable:
 
 `lib/crt` is the workhorse: a `postprocessing` Effect doing barrel
 distortion, scanlines, monochrome phosphor tinting, grain, mains flicker and
-vignette, composed after Bloom. Accuracy work = tuning a preset against film
-screenshots with the Leva panel (visible in dev builds only).
+vignette, composed after Bloom, plus a horizontal phosphor-smear pass
+(`HorizontalSmear`) that drags HDR-bright content (>1.0 luminance) sideways
+with a tapered falloff — render a quad at 2–5× white and it streaks like a
+hot raster line on a filmed CRT, while plain white text stays crisp.
+Accuracy work = tuning a preset against film screenshots with the Leva panel
+(visible in dev builds only).
 
 ### Adding an exhibit
 
