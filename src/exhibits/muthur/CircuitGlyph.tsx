@@ -1,24 +1,39 @@
 import { useEffect, useMemo } from 'react'
 import { useThree } from '@react-three/fiber'
 import { CanvasTexture, NearestFilter } from 'three'
-import { generateGlyph, GLYPH_RADIUS, type GlyphRect } from './glyph'
+import { generateGlyph, type GlyphEvent } from './glyph'
 
-const CANVAS_W = 512
-const CANVAS_H = 384
-// Cell size chosen so the full glyph fills the middle of the tube like the film
-const CELL = Math.floor(CANVAS_H / (GLYPH_RADIUS * 2.4))
+const CANVAS_W = 1200
+const CANVAS_H = 900
+/** Canvas px per trace unit */
+const S = 4
+/** Dead zone along the axes — the dark cross at the mandala's center */
+const GAP = 2
 
-function fillMirrored(ctx: CanvasRenderingContext2D, r: GlyphRect) {
+const MIRRORS: [number, number][] = [
+  [1, 1],
+  [-1, 1],
+  [1, -1],
+  [-1, -1],
+]
+
+function drawEvent(ctx: CanvasRenderingContext2D, e: GlyphEvent) {
   const cx = CANVAS_W / 2
   const cy = CANVAS_H / 2
-  const x = r.x * CELL
-  const y = r.y * CELL
-  const w = r.w * CELL
-  const h = r.h * CELL
-  ctx.fillRect(cx + x, cy - y - h, w, h)
-  ctx.fillRect(cx - x - w, cy - y - h, w, h)
-  ctx.fillRect(cx + x, cy + y, w, h)
-  ctx.fillRect(cx - x - w, cy + y, w, h)
+  for (const [mx, my] of MIRRORS) {
+    if (e.kind === 'stroke') {
+      ctx.beginPath()
+      ctx.moveTo(cx + mx * (e.x1 + GAP) * S, cy - my * (e.y1 + GAP) * S)
+      ctx.lineTo(cx + mx * (e.x2 + GAP) * S, cy - my * (e.y2 + GAP) * S)
+      ctx.stroke()
+    } else {
+      const xa = cx + mx * (e.x + GAP) * S
+      const xb = cx + mx * (e.x + GAP + e.w) * S
+      const ya = cy - my * (e.y + GAP) * S
+      const yb = cy - my * (e.y + GAP + e.h) * S
+      ctx.fillRect(Math.min(xa, xb), Math.min(ya, yb), Math.abs(xb - xa), Math.abs(yb - ya))
+    }
+  }
 }
 
 /** The wake-up circuit-mandala, drawn cumulatively onto a canvas texture. */
@@ -30,6 +45,10 @@ export function CircuitGlyph({ progress }: { progress: number }) {
     canvas.width = CANVAS_W
     canvas.height = CANVAS_H
     const ctx = canvas.getContext('2d')!
+    ctx.lineWidth = 2
+    ctx.lineCap = 'square'
+    ctx.strokeStyle = '#84cba6'
+    ctx.fillStyle = '#e2fff0'
     const texture = new CanvasTexture(canvas)
     texture.magFilter = NearestFilter
     texture.minFilter = NearestFilter
@@ -42,9 +61,7 @@ export function CircuitGlyph({ progress }: { progress: number }) {
   useEffect(() => {
     const { ctx, texture, events } = state
     while (state.drawn < events.length && events[state.drawn].t <= progress) {
-      const r = events[state.drawn++]
-      ctx.fillStyle = r.bright ? '#eafff4' : 'rgba(150, 240, 200, 0.7)'
-      fillMirrored(ctx, r)
+      drawEvent(ctx, events[state.drawn++])
     }
     texture.needsUpdate = true
   }, [progress, state])

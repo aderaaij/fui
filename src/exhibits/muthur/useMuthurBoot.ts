@@ -133,6 +133,14 @@ export function useMuthurBoot() {
   const [streaks, setStreaks] = useState<Streak[]>([])
 
   useEffect(() => {
+    // Dev pin: /muthur?boot=glyph[&p=0.6] freezes the wake-up glyph for
+    // tuning against the reference frames
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('boot') === 'glyph') {
+      setPhase('glyph')
+      setGlyphProgress(Number(params.get('p') ?? '1'))
+      return
+    }
     const schedule = makeSchedule()
     const start = performance.now()
     const id = window.setInterval(() => {

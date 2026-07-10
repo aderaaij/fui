@@ -35,7 +35,9 @@ function Effects() {
   const smear = useSmearParams()
   return (
     <EffectComposer>
-      <Bloom mipmapBlur intensity={1.15} luminanceThreshold={0.18} luminanceSmoothing={0.35} />
+      {/* Threshold sits above the glyph's midtone linework (~0.55 luminance)
+          so only text, pads and HDR streaks glow — keeps the mandala crisp */}
+      <Bloom mipmapBlur intensity={0.9} luminanceThreshold={0.5} luminanceSmoothing={0.3} />
       <HorizontalSmear {...smear} />
       <CRT {...crt} />
     </EffectComposer>
