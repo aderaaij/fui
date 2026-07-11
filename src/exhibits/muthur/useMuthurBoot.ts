@@ -1,7 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { COLS, MATRIX_LINES, ROWS, STORM_FRAGMENTS, STORM_GLYPHS, TITLE } from './matrix'
 
-export type BootPhase = 'glyph' | 'storm' | 'resolve' | 'stable' | 'ready'
+// After 'stable' the matrix stays up for selection ('select'). Choosing
+// INTERFACE 2037 plays the film's beat: the pair burns bright ('chosen'),
+// the rest of the screen drops out ('solo'), then Interface 2037 answers.
+export type BootPhase =
+  | 'glyph'
+  | 'storm'
+  | 'resolve'
+  | 'stable'
+  | 'select'
+  | 'chosen'
+  | 'solo'
+  | 'ready'
 
 /** How much of the address matrix has typed in, in padded-line chars. */
 export interface MatrixReveal {
@@ -33,6 +44,10 @@ const STORM_MS = 2100
 const RESOLVE_MS = 1500
 const STABLE_MS = 1400
 const TICK_MS = 85
+// The selection beat, timed against the muthur-matrix-selection frames:
+// the chosen pair burns bright, then holds alone on the dark tube
+const CHOSEN_MS = 500
+const SOLO_MS = 1400
 
 const rand = (n: number) => Math.floor(Math.random() * n)
 const chance = (p: number) => Math.random() < p
@@ -124,24 +139,34 @@ function resolveMatrix(p: number, schedule: RowSchedule[]): MatrixReveal {
 
 /**
  * Drives MU/TH/UR's wake-up: raster-noise storm → the address matrix typing
- * itself in → stable hold → 'ready' (hand-off to the inquiry interface).
+ * itself in → stable hold → 'select' (the matrix waits for a choice).
+ * `chooseInterface()` plays the film's selection beat and lands on 'ready'.
  */
 // Dev pins: /muthur?boot=glyph[&p=0.6] freezes the wake-up glyph,
-// ?boot=matrix freezes the stable address matrix — for tuning against the
-// reference frames. Read once; applied as initial state so no mid-suspense
-// phase flip happens at mount.
+// ?boot=matrix jumps to the selectable matrix, ?boot=ready to the inquiry
+// screen — for tuning against the reference frames. Read once; applied as
+// initial state so no mid-suspense phase flip happens at mount.
 function readPin() {
   const params = new URLSearchParams(window.location.search)
   return { pin: params.get('boot'), p: Number(params.get('p') ?? '1') }
 }
 
+function pinnedPhase(pin: string | null): BootPhase {
+  if (pin === 'matrix') return 'select'
+  if (pin === 'ready') return 'ready'
+  return 'glyph'
+}
+
 export function useMuthurBoot() {
   const [{ pin, p }] = useState(readPin)
-  const [phase, setPhase] = useState<BootPhase>(pin === 'matrix' ? 'stable' : 'glyph')
+  const [phase, setPhase] = useState<BootPhase>(pinnedPhase(pin))
   const [glyphProgress, setGlyphProgress] = useState(pin === 'glyph' ? p : 0)
   const [storm, setStorm] = useState<StormFragment[]>([])
   const [matrix, setMatrix] = useState<MatrixReveal | null>(pin === 'matrix' ? FULL_MATRIX : null)
   const [streaks, setStreaks] = useState<Streak[]>([])
+  const phaseRef = useRef(phase)
+  phaseRef.current = phase
+  const chooseTimeouts = useRef<number[]>([])
 
   useEffect(() => {
     if (pin) return
@@ -167,9 +192,7 @@ export function useMuthurBoot() {
         setStreaks(makeStreaks(0, 1, 0.12))
       } else {
         window.clearInterval(id)
-        setPhase('ready')
-        setStorm([])
-        setMatrix(null)
+        setPhase('select')
         setStreaks([])
       }
     }, TICK_MS)
@@ -183,5 +206,30 @@ export function useMuthurBoot() {
     }
   }, [pin])
 
-  return { phase, glyphProgress, storm, matrix, streaks }
+  // The waiting matrix still throws the odd phosphor streak
+  useEffect(() => {
+    if (phase !== 'select') return
+    const id = window.setInterval(() => setStreaks(makeStreaks(0, 1, 0.06)), 400)
+    return () => {
+      window.clearInterval(id)
+      setStreaks([])
+    }
+  }, [phase])
+
+  useEffect(() => () => chooseTimeouts.current.forEach((t) => window.clearTimeout(t)), [])
+
+  const chooseInterface = useCallback(() => {
+    if (phaseRef.current !== 'select') return
+    phaseRef.current = 'chosen'
+    setPhase('chosen')
+    chooseTimeouts.current.push(
+      window.setTimeout(() => setPhase('solo'), CHOSEN_MS),
+      window.setTimeout(() => {
+        setPhase('ready')
+        setMatrix(null)
+      }, CHOSEN_MS + SOLO_MS),
+    )
+  }, [])
+
+  return { phase, glyphProgress, storm, matrix, streaks, chooseInterface }
 }

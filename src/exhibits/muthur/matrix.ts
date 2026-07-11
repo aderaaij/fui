@@ -32,6 +32,9 @@ export const MATRIX_ROWS: [string, string, string, string][] = [
 /** Char offset where each column starts within a padded line (reveal math) */
 export const COLUMN_OFFSETS = [0, 14, 28, 44]
 
+/** The row Ripley opens — the only address wired to anything */
+export const INTERFACE_ROW = MATRIX_ROWS.findIndex(([label]) => label === 'INTERFACE')
+
 export const MATRIX_LINES: string[] = MATRIX_ROWS.map(([a, b, c, d]) =>
   (a.padEnd(14) + b.padEnd(14) + c.padEnd(16) + d).trimEnd(),
 )

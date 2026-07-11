@@ -1,15 +1,5 @@
-import type { BootLine } from '@/lib/terminal/useBootSequence'
-
-/**
- * Shown after the overmonitoring matrix settles. In the film this is a
- * separate display (Ripley's session); here it follows the wake-up so the
- * exhibit stays usable.
- */
-export const INTERFACE_SCRIPT: BootLine[] = [
-  { delay: 700, text: '' },
-  { delay: 600, text: 'INTERFACE 2037 READY FOR INQUIRY' },
-  { delay: 450, text: '' },
-]
+/** Typed onto the tube when the INTERFACE 2037 record opens. */
+export const INTERFACE_TITLE = 'INTERFACE 2037 READY FOR INQUIRY'
 
 const SPECIAL_ORDER = [
   'SPECIAL ORDER 937',
