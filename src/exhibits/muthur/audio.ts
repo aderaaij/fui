@@ -4,9 +4,7 @@ import bootMatrixUrl from "./sfx/boot-matrix.m4a";
 import roomHumUrl from "./sfx/room-hum.wav";
 import selectConfirmUrl from "./sfx/select-confirm.m4a";
 import selectMoveUrl from "./sfx/select-move.m4a";
-import typeLine1Url from "./sfx/type-line-1.m4a";
-import typeLine2Url from "./sfx/type-line-2.m4a";
-import typeLine3Url from "./sfx/type-line-3.m4a";
+import typeLoopUrl from "./sfx/type-loop.wav";
 
 /**
  * MU/TH/UR's voice, cut from the same film clips her animations were timed
@@ -20,9 +18,7 @@ const SOURCES = {
   roomHum: roomHumUrl,
   selectMove: selectMoveUrl,
   selectConfirm: selectConfirmUrl,
-  typeLine1: typeLine1Url,
-  typeLine2: typeLine2Url,
-  typeLine3: typeLine3Url,
+  typeLoop: typeLoopUrl,
 } as const;
 
 /** The chamber's constant room tone, looped under every screen. WAV, not
@@ -34,6 +30,8 @@ export type SfxName = keyof typeof SOURCES;
 let ctx: AudioContext | null = null;
 let loads: Map<SfxName, Promise<AudioBuffer>> | null = null;
 let hum: AudioBufferSourceNode | null = null;
+let typeLoop: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+let typeLoopToken = 0;
 let master: GainNode | null = null;
 let unsubMute: (() => void) | null = null;
 let unlock: (() => void) | null = null;
@@ -104,6 +102,8 @@ export function disposeMuthurAudio() {
   ctx = null;
   loads = null;
   hum = null;
+  typeLoop = null;
+  typeLoopToken++;
   master = null;
 }
 
@@ -136,11 +136,47 @@ export function playSfx(name: SfxName, gain = 1) {
     .catch(() => {}); // an unplayable cue is a quieter exhibit, not a crash
 }
 
-const TYPE_LINES = ["typeLine1", "typeLine2", "typeLine3"] as const;
-let typeVoice = 0;
+/**
+ * The line-printer ratchet under the write-head. A loop rather than a
+ * one-shot so it runs exactly as long as the line takes to type — start
+ * it when the reveal begins, stop it as the last character lands. Starts
+ * at a random point in the loop so consecutive lines don't share an
+ * identical clack pattern. Same stale-drop rules as playSfx.
+ */
+export function startTypeLoop(gain = 1) {
+  const c = ctx;
+  const load = loads?.get("typeLoop");
+  if (!c || !load) return;
+  const token = ++typeLoopToken;
+  const requested = performance.now();
+  Promise.all([load, c.state === "running" ? null : c.resume()])
+    .then(([buffer]) => {
+      if (token !== typeLoopToken || typeLoop) return;
+      if (c !== ctx || c.state !== "running" || !master) return;
+      if (performance.now() - requested > 600) return;
+      const src = c.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0, c.currentTime);
+      g.gain.linearRampToValueAtTime(gain, c.currentTime + 0.015);
+      src.connect(g);
+      g.connect(master);
+      src.start(0, Math.random() * buffer.duration);
+      typeLoop = { src, gain: g };
+    })
+    .catch(() => {});
+}
 
-/** The line-printer burst announcing a typed line, rotating through the
- *  three takes so back-to-back statements don't machine-gun one sample. */
-export function playTypeLine(gain = 1) {
-  playSfx(TYPE_LINES[typeVoice++ % TYPE_LINES.length], gain);
+export function stopTypeLoop() {
+  typeLoopToken++;
+  const c = ctx;
+  const t = typeLoop;
+  typeLoop = null;
+  if (!c || !t || c.state === "closed") return;
+  const now = c.currentTime;
+  t.gain.gain.cancelScheduledValues(now);
+  t.gain.gain.setValueAtTime(t.gain.gain.value, now);
+  t.gain.gain.linearRampToValueAtTime(0, now + 0.06);
+  t.src.stop(now + 0.08);
 }

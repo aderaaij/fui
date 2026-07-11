@@ -30,7 +30,8 @@ import {
   disposeMuthurAudio,
   initMuthurAudio,
   playSfx,
-  playTypeLine,
+  startTypeLoop,
+  stopTypeLoop,
 } from "./audio";
 import { INTERFACE_TITLE, respond } from "./muthur";
 import "./boot-gate.css";
@@ -232,7 +233,6 @@ function Terminal({ hold }: { hold: boolean }) {
         shown: 0,
         holdUntil: performance.now() + PRINT_LEAD_MS,
       });
-      playTypeLine(0.55);
     }
   }, [ready, typing, kick]);
 
@@ -250,11 +250,23 @@ function Terminal({ hold }: { hold: boolean }) {
     return () => window.clearInterval(id);
   }, [typingText]);
 
+  // The line-printer ratchet runs exactly as long as the line types: in
+  // when the print bar lifts, out (below) as the last character lands
+  useEffect(() => {
+    if (typingText === undefined) return;
+    const id = window.setTimeout(() => startTypeLoop(0.5), PRINT_LEAD_MS);
+    return () => {
+      window.clearTimeout(id);
+      stopTypeLoop();
+    };
+  }, [typingText]);
+
   // A finished line holds a beat, then lands and the queue advances. Only
   // the last line of a statement gets ruled — the film leaves wrap lines
   // bare ("REQUEST CLARIFICATION ON" never gains one)
   useEffect(() => {
     if (!typing || typing.shown < typing.text.length) return;
+    stopTypeLoop();
     const id = window.setTimeout(() => {
       const rule = queueRef.current.length === 0 || queueRef.current[0] === "";
       setLines((l) => [...l, { text: typing.text, rule }]);
