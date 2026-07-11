@@ -62,7 +62,6 @@ function makeStreaks(min: number, max: number, keep = 1): Streak[] {
  * ghosts perfectly registered under their source row.
  */
 export interface StormFragment {
-  id: number
   row: number
   col: number
   text: string
@@ -70,13 +69,11 @@ export interface StormFragment {
   block?: boolean
 }
 
-let fragmentId = 0
-
 function stormFragments(): StormFragment[] {
   const out: StormFragment[] = []
   const put = (row: number, col: number, text: string, block = false) => {
     if (row < 0 || row >= ROWS || col >= COLS) return
-    out.push({ id: fragmentId++, row, col, text: text.slice(0, COLS - col), block })
+    out.push({ row, col, text: text.slice(0, COLS - col), block })
   }
   for (let i = 0, bursts = 14 + rand(10); i < bursts; i++) {
     const row = rand(ROWS - 1)

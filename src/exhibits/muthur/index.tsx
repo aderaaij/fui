@@ -209,6 +209,12 @@ function MatrixScreen({ reveal }: { reveal: MatrixReveal }) {
   )
 }
 
+// Fixed pools with stable keys: the storm re-rolls every 85ms tick, and
+// remounting ~40 troika Texts per tick (each with fresh geometry/material)
+// visibly stutters. Slots persist across ticks; only string/position change.
+const TEXT_SLOTS = 46 // max bursts (23), each doubled by an interlace ghost
+const BLOCK_SLOTS = 6
+
 /**
  * The raster-noise storm. Each fragment sits on the 64-column grid at its
  * own position; the hot blocks are quads since Graduate has no █ glyph.
@@ -224,20 +230,38 @@ function StormScreen({ fragments }: { fragments: StormFragment[] }) {
   const fontSize = Math.min(rowH / 1.2, cellW / 0.74)
   const textProps = screenText(fontSize)
 
+  const texts: StormFragment[] = []
+  const blocks: StormFragment[] = []
+  for (const f of fragments) (f.block ? blocks : texts).push(f)
+
   return (
     <group position={[-availW / 2, availH / 2, 0]} scale={[STRETCH, 1, 1]}>
-      {fragments.map((f) =>
-        f.block ? (
-          <mesh key={f.id} position={[(f.col + 0.75) * cellW, -(f.row + 0.5) * rowH, 0]}>
+      {Array.from({ length: TEXT_SLOTS }, (_, i) => {
+        const f = texts[i]
+        return (
+          <Text
+            key={i}
+            {...textProps}
+            visible={f !== undefined}
+            position={f ? [f.col * cellW, -f.row * rowH, 0] : [0, 0, 0]}
+          >
+            {f?.text ?? ''}
+          </Text>
+        )
+      })}
+      {Array.from({ length: BLOCK_SLOTS }, (_, i) => {
+        const b = blocks[i]
+        return (
+          <mesh
+            key={i}
+            visible={b !== undefined}
+            position={b ? [(b.col + 0.75) * cellW, -(b.row + 0.5) * rowH, 0] : [0, 0, 0]}
+          >
             <planeGeometry args={[cellW * 1.5, fontSize * 0.85]} />
             <meshBasicMaterial color="#ffffff" toneMapped={false} />
           </mesh>
-        ) : (
-          <Text key={f.id} {...textProps} position={[f.col * cellW, -f.row * rowH, 0]}>
-            {f.text}
-          </Text>
-        ),
-      )}
+        )
+      })}
     </group>
   )
 }
