@@ -8,8 +8,7 @@ import { HorizontalSmear } from '@/lib/crt/HorizontalSmear'
 import { useCRTParams, useSmearParams } from '@/lib/crt/useCRTParams'
 import { useBlink } from '@/lib/terminal/useBlink'
 import { useBootSequence } from '@/lib/terminal/useBootSequence'
-import fontUrl from '@/assets/fonts/vt323/VT323-Regular.ttf'
-import matrixFontUrl from '@/assets/fonts/graduate/Graduate-Regular.ttf'
+import fontUrl from '@/assets/fonts/graduate/Graduate-Regular.ttf'
 import { CircuitGlyph } from './CircuitGlyph'
 import {
   CHARSET,
@@ -22,7 +21,12 @@ import {
   TITLE_ROW,
 } from './matrix'
 import { INTERFACE_SCRIPT, respond } from './muthur'
-import { useMuthurBoot, type MatrixReveal, type Streak } from './useMuthurBoot'
+import {
+  useMuthurBoot,
+  type MatrixReveal,
+  type StormFragment,
+  type Streak,
+} from './useMuthurBoot'
 
 const MAX_ROWS = 16
 const MAX_INPUT = 42
@@ -104,14 +108,11 @@ function Terminal() {
     return (
       <>
         <CircuitGlyph progress={boot.glyphProgress} />
-        {/* Warm both SDF atlases while the glyph plays, so the storm and
-            matrix render from their first tick on cold loads. Own boundary
-            so the font loads never hide the glyph. */}
+        {/* Warm the SDF atlas while the glyph plays, so the storm renders
+            from its first tick on cold loads. Own boundary so the font load
+            never hides the glyph. */}
         <Suspense fallback={null}>
           <Text font={fontUrl} fontSize={0.001} fillOpacity={0} position={[0, 0, -1]}>
-            {CHARSET}
-          </Text>
-          <Text font={matrixFontUrl} fontSize={0.001} fillOpacity={0} position={[0, 0, -1]}>
             {CHARSET}
           </Text>
         </Suspense>
@@ -119,7 +120,7 @@ function Terminal() {
     )
   }
 
-  // Each screen gets its own suspense boundary: if a font is still loading,
+  // Each screen gets its own suspense boundary: if the font is still loading,
   // only that screen waits — suspending the top boundary would pause the
   // whole R3F frameloop (no CRT pass, black tube)
   if ((boot.phase === 'resolve' || boot.phase === 'stable') && boot.matrix) {
@@ -137,7 +138,7 @@ function Terminal() {
     return (
       <>
         <Suspense fallback={null}>
-          <Screen text={boot.text} />
+          <StormScreen fragments={boot.storm} />
         </Suspense>
         <Streaks streaks={boot.streaks} />
       </>
@@ -145,10 +146,10 @@ function Terminal() {
   }
 
   const rows = [...introLines, ...session].slice(-MAX_ROWS)
-  const promptRow = online && !pending ? `\n> ${input}${cursorOn ? '█' : ' '}` : ''
+  const prompt = online && !pending ? `> ${input}` : null
   return (
     <Suspense fallback={null}>
-      <Screen text={rows.join('\n') + promptRow} />
+      <TerminalScreen lines={rows} prompt={prompt} cursorOn={cursorOn} />
     </Suspense>
   )
 }
@@ -157,6 +158,19 @@ function Terminal() {
 const COLUMN_FRACS = [0, 0.29, 0.55, 0.85]
 // The film's screens use City Light "optically stretched" — same trick here
 const STRETCH = 1.2
+
+/** Shared type treatment for every screen on MU/TH/UR's tube. */
+const screenText = (fontSize: number) =>
+  ({
+    font: fontUrl,
+    fontSize,
+    color: '#ffffff',
+    anchorX: 'left',
+    anchorY: 'top',
+    lineHeight: 1.42,
+    letterSpacing: 0.08,
+    whiteSpace: 'nowrap',
+  }) as const
 
 /**
  * The OVERMONITORING ADDRESS MATRIX in Graduate (stand-in for the film's
@@ -171,17 +185,7 @@ function MatrixScreen({ reveal }: { reveal: MatrixReveal }) {
   const fontSize = availH / (ROWS * 1.42)
   const rowH = fontSize * 1.42
   const contentW = availW / STRETCH
-
-  const textProps = {
-    font: matrixFontUrl,
-    fontSize,
-    color: '#ffffff',
-    anchorX: 'left',
-    anchorY: 'top',
-    lineHeight: 1.42,
-    letterSpacing: 0.08,
-    whiteSpace: 'nowrap',
-  } as const
+  const textProps = screenText(fontSize)
 
   const columns = COLUMN_OFFSETS.map((offset, k) =>
     MATRIX_ROWS.map((row, i) => {
@@ -205,27 +209,83 @@ function MatrixScreen({ reveal }: { reveal: MatrixReveal }) {
   )
 }
 
-function Screen({ text }: { text: string }) {
+/**
+ * The raster-noise storm. Each fragment sits on the 64-column grid at its
+ * own position; the hot blocks are quads since Graduate has no █ glyph.
+ */
+function StormScreen({ fragments }: { fragments: StormFragment[] }) {
   const viewport = useThree((s) => s.viewport)
-  const margin = viewport.width * 0.05
-  const availW = viewport.width - margin * 2
-  const availH = viewport.height - margin * 2
-  // Fit the boot grid: ROWS lines tall, COLS monospace cells wide
-  const fontSize = Math.min(availH / (ROWS * 1.32), availW / (COLS * 0.58))
+  const availW = viewport.width * 0.9
+  const availH = viewport.height * 0.9
+  const contentW = availW / STRETCH
+  const cellW = contentW / COLS
+  const rowH = availH / ROWS
+  // Average Graduate cap advance is ~0.66em + 0.08 tracking → one cell
+  const fontSize = Math.min(rowH / 1.2, cellW / 0.74)
+  const textProps = screenText(fontSize)
+
   return (
-    <Text
-      font={fontUrl}
-      fontSize={fontSize}
-      color="#ffffff"
-      anchorX="left"
-      anchorY="top"
-      lineHeight={1.32}
-      letterSpacing={0.06}
-      whiteSpace="nowrap"
-      position={[-availW / 2, availH / 2, 0]}
-    >
-      {text}
-    </Text>
+    <group position={[-availW / 2, availH / 2, 0]} scale={[STRETCH, 1, 1]}>
+      {fragments.map((f) =>
+        f.block ? (
+          <mesh key={f.id} position={[(f.col + 0.75) * cellW, -(f.row + 0.5) * rowH, 0]}>
+            <planeGeometry args={[cellW * 1.5, fontSize * 0.85]} />
+            <meshBasicMaterial color="#ffffff" toneMapped={false} />
+          </mesh>
+        ) : (
+          <Text key={f.id} {...textProps} position={[f.col * cellW, -f.row * rowH, 0]}>
+            {f.text}
+          </Text>
+        ),
+      )}
+    </group>
+  )
+}
+
+/**
+ * Interface 2037 — the inquiry terminal, in the same stretched Graduate.
+ * The block cursor is a quad placed after the prompt's measured text width
+ * (troika reports it via onSync; Graduate has no █ glyph to type).
+ */
+function TerminalScreen({
+  lines,
+  prompt,
+  cursorOn,
+}: {
+  lines: string[]
+  prompt: string | null
+  cursorOn: boolean
+}) {
+  const viewport = useThree((s) => s.viewport)
+  const [caretX, setCaretX] = useState(0)
+  const availW = viewport.width * 0.9
+  const availH = viewport.height * 0.9
+  const contentW = availW / STRETCH
+  // Fit ROWS lines tall, and the widest script line (crew roster) across
+  const fontSize = Math.min(availH / (ROWS * 1.42), contentW / 38)
+  const rowH = fontSize * 1.42
+  const promptY = -rowH * lines.length
+  const textProps = screenText(fontSize)
+
+  return (
+    <group position={[-availW / 2, availH / 2, 0]} scale={[STRETCH, 1, 1]}>
+      <Text {...textProps}>{lines.join('\n')}</Text>
+      {prompt !== null && (
+        <>
+          <Text
+            {...textProps}
+            position={[0, promptY, 0]}
+            onSync={(t) => setCaretX(t.textRenderInfo.blockBounds[2])}
+          >
+            {prompt}
+          </Text>
+          <mesh position={[caretX + fontSize * 0.5, promptY - fontSize * 0.62, 0]} visible={cursorOn}>
+            <planeGeometry args={[fontSize * 0.6, fontSize * 0.82]} />
+            <meshBasicMaterial color="#ffffff" toneMapped={false} />
+          </mesh>
+        </>
+      )}
+    </group>
   )
 }
 

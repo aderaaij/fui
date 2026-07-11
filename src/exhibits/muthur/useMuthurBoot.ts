@@ -55,23 +55,29 @@ function makeStreaks(min: number, max: number, keep = 1): Streak[] {
   return out
 }
 
-function blankGrid(): string[][] {
-  return Array.from({ length: ROWS }, () => Array<string>(COLS).fill(' '))
+/**
+ * One burst of raster noise, in grid coordinates. Graduate is proportional,
+ * so the storm can't be laid out as padded monospace strings — each fragment
+ * is placed on the 64-column grid individually, which also keeps interlace
+ * ghosts perfectly registered under their source row.
+ */
+export interface StormFragment {
+  id: number
+  row: number
+  col: number
+  text: string
+  /** Hot phosphor block — rendered as a quad (Graduate has no █ glyph). */
+  block?: boolean
 }
 
-function writeAt(grid: string[][], row: number, col: number, text: string) {
-  if (row < 0 || row >= ROWS) return
-  for (let i = 0; i < text.length && col + i < COLS; i++) {
-    grid[row][col + i] = text[i]
+let fragmentId = 0
+
+function stormFragments(): StormFragment[] {
+  const out: StormFragment[] = []
+  const put = (row: number, col: number, text: string, block = false) => {
+    if (row < 0 || row >= ROWS || col >= COLS) return
+    out.push({ id: fragmentId++, row, col, text: text.slice(0, COLS - col), block })
   }
-}
-
-function joinGrid(grid: string[][]): string[] {
-  return grid.map((row) => row.join('').trimEnd())
-}
-
-function stormScreen(): string[] {
-  const grid = blankGrid()
   for (let i = 0, bursts = 14 + rand(10); i < bursts; i++) {
     const row = rand(ROWS - 1)
     const col = rand(COLS - 12)
@@ -86,14 +92,14 @@ function stormScreen(): string[] {
         chance(0.2) ? ' ' : STORM_GLYPHS[rand(STORM_GLYPHS.length)],
       ).join('')
     }
-    writeAt(grid, row, col, token)
+    put(row, col, token)
     // interlace ghost: the film doubles rows one line down
-    if (chance(0.6)) writeAt(grid, row + 1, col, token)
+    if (chance(0.6)) put(row + 1, col, token)
   }
   for (let i = 0, blocks = 3 + rand(4); i < blocks; i++) {
-    writeAt(grid, rand(ROWS), rand(COLS), '█')
+    put(rand(ROWS), rand(COLS - 2), '', true)
   }
-  return joinGrid(grid)
+  return out
 }
 
 interface RowSchedule {
@@ -136,7 +142,7 @@ export function useMuthurBoot() {
   const [{ pin, p }] = useState(readPin)
   const [phase, setPhase] = useState<BootPhase>(pin === 'matrix' ? 'stable' : 'glyph')
   const [glyphProgress, setGlyphProgress] = useState(pin === 'glyph' ? p : 0)
-  const [screen, setScreen] = useState<string[]>([])
+  const [storm, setStorm] = useState<StormFragment[]>([])
   const [matrix, setMatrix] = useState<MatrixReveal | null>(pin === 'matrix' ? FULL_MATRIX : null)
   const [streaks, setStreaks] = useState<Streak[]>([])
 
@@ -150,12 +156,12 @@ export function useMuthurBoot() {
         setGlyphProgress(t / GLYPH_MS)
       } else if (t < GLYPH_MS + STORM_MS) {
         setPhase('storm')
-        setScreen(stormScreen())
+        setStorm(stormFragments())
         setStreaks(makeStreaks(2, 6))
       } else if (t < GLYPH_MS + STORM_MS + RESOLVE_MS) {
         const p = (t - GLYPH_MS - STORM_MS) / RESOLVE_MS
         setPhase('resolve')
-        setScreen([])
+        setStorm([])
         setMatrix(resolveMatrix(p, schedule))
         setStreaks(makeStreaks(0, 3, 1 - p * 0.6))
       } else if (t < GLYPH_MS + STORM_MS + RESOLVE_MS + STABLE_MS) {
@@ -165,7 +171,7 @@ export function useMuthurBoot() {
       } else {
         window.clearInterval(id)
         setPhase('ready')
-        setScreen([])
+        setStorm([])
         setMatrix(null)
         setStreaks([])
       }
@@ -174,11 +180,11 @@ export function useMuthurBoot() {
       window.clearInterval(id)
       setPhase('glyph')
       setGlyphProgress(0)
-      setScreen([])
+      setStorm([])
       setMatrix(null)
       setStreaks([])
     }
   }, [pin])
 
-  return { phase, glyphProgress, text: screen.join('\n'), matrix, streaks }
+  return { phase, glyphProgress, storm, matrix, streaks }
 }

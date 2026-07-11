@@ -72,7 +72,7 @@ export const CHARSET = Array.from(
       STORM_FRAGMENTS.join('') +
       TITLE +
       MATRIX_LINES.join('') +
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:;()/%!?'-_>█"
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:;()/%!?'-_>"
     ).split(''),
   ),
 ).join('')

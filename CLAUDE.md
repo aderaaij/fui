@@ -20,5 +20,5 @@ Conventions:
 - Shaders live next to their exhibit or lib as `.frag`/`.vert` files
   (vite-plugin-glsl). Do not re-declare `inputBuffer`/`resolution`/`time` in
   postprocessing effect shaders.
-- In-scene text uses drei `<Text>` with the self-hosted VT323 font
-  (`src/assets/fonts/`).
+- In-scene text uses drei `<Text>` with self-hosted OFL fonts from
+  `src/assets/fonts/` (MU/TH/UR screens: Graduate; DOM chrome: VT323).
