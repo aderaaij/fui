@@ -1,0 +1,7 @@
+# Copy to .dev.vars (gitignored) for local `pnpm dev:api`.
+# Production uses `wrangler secret put <NAME>` instead.
+# Only the active provider's key is needed (AI_PROVIDER in wrangler.jsonc).
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+# OPENAI_API_KEY=sk-your-key-here
+# Uncomment to test the other provider locally (overrides wrangler.jsonc):
+# AI_PROVIDER=openai

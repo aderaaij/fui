@@ -25,3 +25,7 @@ reference/
 *.njsproj
 *.sln
 *.sw?
+
+# local Worker secrets (wrangler dev)
+.dev.vars
+.wrangler

@@ -16,8 +16,8 @@ const SPECIAL_ORDER = [
   'CREW EXPENDABLE.',
 ]
 
-/** MU/TH/UR answers a small set of inquiries, as in the film. */
-export function respond(inquiry: string): string[] {
+/** The film's own inquiries answer verbatim and never leave the page. */
+function respondScripted(inquiry: string): string[] | null {
   const q = inquiry.toUpperCase().trim()
   if (!q) return []
   if (q.includes('937') || q.includes('SPECIAL ORDER')) return SPECIAL_ORDER
@@ -37,5 +37,39 @@ export function respond(inquiry: string): string[] {
   if (q.includes('SIGNAL') || q.includes('TRANSMISSION') || q.includes('BEACON')) {
     return ['ORIGIN: LV-426', 'APPARENT DISTRESS CALL... ANALYSIS INCOMPLETE']
   }
-  return ['UNABLE TO CLARIFY']
+  return null
+}
+
+/** Worker unreachable = the film's unknown-command reply, as before the AI. */
+const OFFLINE = ['UNABLE TO CLARIFY']
+
+/**
+ * Film inquiries answer from the script above; anything else goes to the
+ * Worker (see worker/index.ts), where MU/TH/UR's persona synthesizes a
+ * reply. The Worker answers denials — rate, budget, faults — in the same
+ * lines-on-the-tube shape, so whatever comes back just gets printed.
+ */
+export async function respond(inquiry: string): Promise<string[]> {
+  const scripted = respondScripted(inquiry)
+  if (scripted) return scripted
+  try {
+    const res = await fetch('/api/muthur', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ inquiry }),
+      signal: AbortSignal.timeout(25_000),
+    })
+    const data: unknown = await res.json()
+    const lines = (data as { lines?: unknown }).lines
+    if (
+      Array.isArray(lines) &&
+      lines.length > 0 &&
+      lines.every((line) => typeof line === 'string')
+    ) {
+      return lines
+    }
+    return OFFLINE
+  } catch {
+    return OFFLINE
+  }
 }

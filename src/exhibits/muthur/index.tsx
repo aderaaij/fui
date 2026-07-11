@@ -280,11 +280,17 @@ function Terminal({ hold }: { hold: boolean }) {
         editInput(() => "");
         setLocked(true);
         lockedRef.current = true;
-        replyTimeout.current = window.setTimeout(() => {
-          // Blank row between inquiry and answer, as in the film
-          queueRef.current.push("", ...respond(inquiry), "");
-          setKick((k) => k + 1);
-        }, REPLY_DELAY_MS);
+        // Scripted answers land on the film's reply beat; model answers
+        // land when the Worker returns (the beat is the minimum hold)
+        const asked = performance.now();
+        void respond(inquiry).then((reply) => {
+          const wait = Math.max(0, REPLY_DELAY_MS - (performance.now() - asked));
+          replyTimeout.current = window.setTimeout(() => {
+            // Blank row between inquiry and answer, as in the film
+            queueRef.current.push("", ...reply, "");
+            setKick((k) => k + 1);
+          }, wait);
+        });
       } else if (e.key === "Backspace") {
         editInput((i) => i.slice(0, -1));
         setPulse((p) => p + 1);

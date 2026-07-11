@@ -1,14 +1,47 @@
-// Deployed as a Cloudflare Worker with static assets (Workers Builds picks
-// this up on every push — build `pnpm build`, output `dist/`). Assets-only:
-// no Worker script, so no `main`.
+// Deployed as a Cloudflare Worker (Workers Builds picks this up on every
+// push — build `pnpm build`, output `dist/`). Static assets plus one Worker
+// script: /api/* is MU/TH/UR's inquiry endpoint, everything else is assets.
+// The Worker needs `wrangler secret put ANTHROPIC_API_KEY` set once
+// (locally: .dev.vars).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "fui",
   "compatibility_date": "2026-07-11",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "worker/index.ts",
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     // The archive is a React Router SPA — deep links like /muthur must
     // fall back to index.html instead of 404ing
-    "not_found_handling": "single-page-application"
-  }
+    "not_found_handling": "single-page-application",
+    // Only inquiries reach the Worker; asset requests never pay for it
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    // "anthropic" | "openai" — which API answers unscripted inquiries.
+    // The matching secret (ANTHROPIC_API_KEY / OPENAI_API_KEY) must be set;
+    // models and per-token pricing live in worker/synthesis.ts.
+    "AI_PROVIDER": "anthropic",
+    // Global daily spend cap. When it's gone, unscripted inquiries answer
+    // UNABLE TO CLARIFY until UTC midnight — the pre-AI exhibit, invisibly.
+    "DAILY_BUDGET_USD": "2",
+    "IP_DAILY_LIMIT": "40"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "BUDGET", "class_name": "MuthurBudget" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MuthurBudget"] }],
+  "unsafe": {
+    "bindings": [
+      // Burst limiter, per IP. namespace_id is an arbitrary app-chosen tag.
+      {
+        "name": "RATE_LIMITER",
+        "type": "ratelimit",
+        "namespace_id": "1001",
+        "simple": { "limit": 8, "period": 60 }
+      }
+    ]
+  },
+  "observability": { "enabled": true }
 }

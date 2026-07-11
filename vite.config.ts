@@ -18,5 +18,10 @@ export default defineConfig({
       usePolling: true,
       interval: 300,
     },
+    // MU/TH/UR's inquiry endpoint lives in the Worker — run `pnpm dev:api`
+    // (wrangler dev, port 8787) alongside `pnpm dev` to answer inquiries
+    proxy: {
+      '/api': 'http://localhost:8787',
+    },
   },
 })

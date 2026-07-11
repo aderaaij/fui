@@ -13,6 +13,16 @@ architecture; the short version:
 - Every accuracy/usability trade-off gets an entry in the exhibit's
   `accuracyNotes` in the registry — it renders as "restoration notes".
 
+- `worker/` is the Cloudflare Worker behind `/api/*` — MU/TH/UR's live
+  inquiry endpoint. The scripted table in `src/exhibits/muthur/muthur.ts`
+  answers film inquiries client-side; only unmatched ones hit the Worker,
+  which holds the API key, persona, and all caps server-side (per-IP
+  rate limit + a Durable Object daily budget; knobs in `wrangler.jsonc`
+  vars). The model provider is switchable — `AI_PROVIDER` var picks
+  Anthropic or OpenAI; adapters + pricing live in `worker/synthesis.ts`. Every denial answers in-fiction — the client prints whatever lines
+  come back. Local dev: `pnpm dev:api` (needs `.dev.vars`, see the example
+  file) next to `pnpm dev`; Vite proxies `/api` to it.
+
 Conventions:
 
 - pnpm. `pnpm dev` / `pnpm build` (runs tsc first) / `pnpm lint` (oxlint).
