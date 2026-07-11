@@ -45,6 +45,13 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   float luma = dot(color, vec3(0.299, 0.587, 0.114));
   color = mix(color, luma * uTint, uPhosphor);
 
+  // Marker ink: scene content drawn in pure red prints as clean white —
+  // untinted, and crisp by construction since its low luminance never
+  // crosses the bloom/smear thresholds (used for selection rules)
+  vec3 raw = texture2D(inputBuffer, cuv).rgb;
+  float marker = smoothstep(0.15, 0.5, raw.r - max(raw.g, raw.b));
+  color = mix(color, vec3(min(raw.r, 1.0) * 0.92), marker);
+
   // Scanlines follow the curved glass
   float lineCount = uScanlineCount > 0.0 ? uScanlineCount : resolution.y * 0.4;
   float scan = 0.5 + 0.5 * sin(cuv.y * lineCount * 6.2831853);

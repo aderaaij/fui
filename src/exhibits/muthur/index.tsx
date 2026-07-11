@@ -81,17 +81,20 @@ function Terminal() {
   const cursorOn = useBlink()
 
   // --- matrix selection ---------------------------------------------------
-  const [selRow, setSelRow] = useState(0)
+  // The rule walks the left address column first, then continues down the
+  // right one; INTERFACE 2037 (left column) is the only live address
+  const [selIndex, setSelIndex] = useState(0)
   const selRef = useRef(0)
 
   useEffect(() => {
     if (phase !== 'select') return
+    const count = MATRIX_ROWS.length * 2
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault()
-        const step = e.key === 'ArrowDown' ? 1 : MATRIX_ROWS.length - 1
-        selRef.current = (selRef.current + step) % MATRIX_ROWS.length
-        setSelRow(selRef.current)
+        const step = e.key === 'ArrowDown' ? 1 : count - 1
+        selRef.current = (selRef.current + step) % count
+        setSelIndex(selRef.current)
       } else if (e.key === 'Enter' && selRef.current === INTERFACE_ROW) {
         chooseInterface()
       }
@@ -223,7 +226,7 @@ function Terminal() {
     return (
       <>
         <Suspense fallback={null}>
-          <MatrixScreen reveal={boot.matrix} phase={phase} selRow={selRow} />
+          <MatrixScreen reveal={boot.matrix} phase={phase} selIndex={selIndex} />
         </Suspense>
         <Streaks streaks={boot.streaks} />
       </>
@@ -258,9 +261,10 @@ const STRETCH = 1.2
 // Average Graduate cap advance is ~0.66em + 0.08 tracking
 const CHAR_W = 0.74
 
-// White-hot, past the smear threshold — the selection rule bleeds like the
-// film's; the chosen pair just burns brighter than the surrounding green
-const RULE_COLOR = new Color(2.4, 2.4, 2.4)
+// Pure red is the CRT pass's marker ink: it prints as clean white with no
+// bloom or smear — the selection rule stays a crisp straight line
+const RULE_COLOR = new Color(1, 0, 0)
+// The chosen pair burns brighter than the surrounding green
 const HOT_TEXT = new Color(1.9, 1.9, 1.9)
 
 /** Shared type treatment for every screen on MU/TH/UR's tube. */
@@ -289,11 +293,11 @@ const screenText = (fontSize: number) =>
 function MatrixScreen({
   reveal,
   phase,
-  selRow,
+  selIndex,
 }: {
   reveal: MatrixReveal
   phase: Extract<BootPhase, 'resolve' | 'stable' | 'select' | 'chosen' | 'solo'>
-  selRow: number
+  selIndex: number
 }) {
   const viewport = useThree((s) => s.viewport)
   const availW = viewport.width * 0.88
@@ -314,10 +318,16 @@ function MatrixScreen({
     }).join('\n'),
   )
 
+  // Rule geometry: label start through value end of the selected pair,
+  // in whichever address column the selection has walked into
+  const selRow = selIndex % MATRIX_ROWS.length
+  const labelCol = selIndex < MATRIX_ROWS.length ? 0 : 2
   const sel = MATRIX_ROWS[selRow]
-  const ruleW = sel[1]
-    ? contentW * COLUMN_FRACS[1] + sel[1].length * fontSize * CHAR_W
-    : sel[0].length * fontSize * CHAR_W
+  const ruleX = contentW * COLUMN_FRACS[labelCol]
+  const ruleEnd = sel[labelCol + 1]
+    ? contentW * COLUMN_FRACS[labelCol + 1] + sel[labelCol + 1].length * fontSize * CHAR_W
+    : ruleX + sel[labelCol].length * fontSize * CHAR_W
+  const ruleW = ruleEnd - ruleX
 
   return (
     <group position={[-availW / 2, availH / 2, 0]} scale={[STRETCH, 1, 1]}>
@@ -338,7 +348,10 @@ function MatrixScreen({
         </>
       )}
       {phase === 'select' && (
-        <mesh position={[ruleW / 2, rowY(selRow) - fontSize * 1.16, 0.05]} scale={[ruleW, 1, 1]}>
+        <mesh
+          position={[ruleX + ruleW / 2, rowY(selRow) - fontSize * 1.16, 0.05]}
+          scale={[ruleW, 1, 1]}
+        >
           <planeGeometry args={[1, fontSize * 0.09]} />
           <meshBasicMaterial color={RULE_COLOR} toneMapped={false} />
         </mesh>
