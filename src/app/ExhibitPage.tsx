@@ -2,6 +2,7 @@ import { Suspense, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router'
 import { Leva } from 'leva'
 import { getExhibit } from '@/exhibits/registry'
+import { isMuted, setMuted } from '@/lib/sound'
 
 export function ExhibitPage() {
   const { exhibitId } = useParams()
@@ -24,16 +25,19 @@ export function ExhibitPage() {
         <span className="stage-title">
           {meta.title} · {meta.source.title.toUpperCase()} / {meta.source.year}
         </span>
-        <button
-          type="button"
-          onClick={(e) => {
-            // Return focus to the exhibit — terminals listen on window
-            e.currentTarget.blur()
-            setNotesOpen((o) => !o)
-          }}
-        >
-          {notesOpen ? 'CLOSE' : 'NOTES'}
-        </button>
+        <span className="stage-actions">
+          {meta.sound && <SoundToggle />}
+          <button
+            type="button"
+            onClick={(e) => {
+              // Return focus to the exhibit — terminals listen on window
+              e.currentTarget.blur()
+              setNotesOpen((o) => !o)
+            }}
+          >
+            {notesOpen ? 'CLOSE' : 'NOTES'}
+          </button>
+        </span>
       </header>
 
       {notesOpen && (
@@ -49,5 +53,24 @@ export function ExhibitPage() {
 
       <Leva hidden={!import.meta.env.DEV} collapsed />
     </main>
+  )
+}
+
+/** Archive-wide mute. The click that unmutes doubles as the user gesture
+ *  browsers demand before audio may start on a cold-opened tab. */
+function SoundToggle() {
+  const [muted, setMutedState] = useState(isMuted)
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        // Return focus to the exhibit — terminals listen on window
+        e.currentTarget.blur()
+        setMuted(!muted)
+        setMutedState(!muted)
+      }}
+    >
+      {muted ? 'SOUND: OFF' : 'SOUND: ON'}
+    </button>
   )
 }

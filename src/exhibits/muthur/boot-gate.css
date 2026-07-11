@@ -1,0 +1,16 @@
+/* The power switch shown to direct visitors: their boot click is the user
+   activation browsers demand before MU/TH/UR may make a sound. */
+.muthur-boot-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+}
+
+.muthur-boot-gate button {
+  font-size: 1.5rem;
+  letter-spacing: 0.14em;
+  padding: 0.45rem 1.6rem;
+  text-shadow: 0 0 8px rgba(109, 255, 160, 0.6);
+}

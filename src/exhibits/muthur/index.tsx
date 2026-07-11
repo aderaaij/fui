@@ -25,7 +25,15 @@ import {
   TITLE,
   TITLE_ROW,
 } from "./matrix";
+import { isMuted } from "@/lib/sound";
+import {
+  disposeMuthurAudio,
+  initMuthurAudio,
+  playSfx,
+  playTypeLine,
+} from "./audio";
 import { INTERFACE_TITLE, respond } from "./muthur";
+import "./boot-gate.css";
 import {
   useMuthurBoot,
   type BootPhase,
@@ -47,22 +55,54 @@ const PRINT_FLASH_MS = 90;
 const PRINT_COLLAPSE_MS = 120;
 const PRINT_LEAD_MS = PRINT_FLASH_MS + PRINT_COLLAPSE_MS;
 
+// Direct visits carry no user activation, so the boot would play silent —
+// hold it behind a power switch instead. Arrivals from the archive index
+// already clicked, muted visitors chose silence, dev pins skip the boot:
+// all three power on unprompted.
+function needsBootGate() {
+  if (isMuted()) return false;
+  if (new URLSearchParams(window.location.search).has("boot")) return false;
+  return !(navigator.userActivation?.hasBeenActive ?? true);
+}
+
 export default function MuthurExhibit() {
+  const [gated, setGated] = useState(needsBootGate);
   return (
-    // depth/stencil off: the default framebuffer only ever receives the
-    // composer's final fullscreen quad — the scene renders into the
-    // composer's own targets, which carry their own depth
-    <Canvas
-      flat
-      dpr={[1, 2]}
-      gl={{ antialias: false, depth: false, stencil: false }}
-    >
-      <color attach="background" args={["#040604"]} />
-      <Suspense fallback={null}>
-        <Terminal />
-      </Suspense>
-      <Effects />
-    </Canvas>
+    <>
+      {/* depth/stencil off: the default framebuffer only ever receives the
+          composer's final fullscreen quad — the scene renders into the
+          composer's own targets, which carry their own depth */}
+      <Canvas
+        flat
+        dpr={[1, 2]}
+        gl={{ antialias: false, depth: false, stencil: false }}
+      >
+        <color attach="background" args={["#040604"]} />
+        <Suspense fallback={null}>
+          <Terminal hold={gated} />
+        </Suspense>
+        <Effects />
+      </Canvas>
+      {gated && (
+        <div className="muthur-boot-gate">
+          <button
+            type="button"
+            autoFocus
+            onClick={(e) => {
+              // Return focus to the exhibit — terminals listen on window.
+              // The terminal already initialized audio (suspended); this
+              // click's pointerdown resumed it via the unlock listener.
+              // init here only covers the terminal not having mounted yet.
+              e.currentTarget.blur();
+              initMuthurAudio();
+              setGated(false);
+            }}
+          >
+            POWER ON
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -101,11 +141,27 @@ interface Typing {
   holdUntil: number;
 }
 
-function Terminal() {
-  const boot = useMuthurBoot();
+function Terminal({ hold }: { hold: boolean }) {
+  const boot = useMuthurBoot(hold);
   const { phase, chooseInterface } = boot;
   const ready = phase === "ready";
   const cursorOn = useBlink();
+
+  useEffect(() => {
+    initMuthurAudio();
+    return disposeMuthurAudio;
+  }, []);
+
+  // The film's own audio, cut from the clips the phase lengths were timed
+  // against — each cue runs exactly its phase (see ./audio.ts). Behind the
+  // power switch the phase idles at 'glyph', so the cue must wait for the
+  // hold to lift — at mount it would fire early and go stale by the click.
+  useEffect(() => {
+    if (hold) return;
+    if (phase === "glyph") playSfx("bootGlyph", 0.7);
+    else if (phase === "storm") playSfx("bootMatrix", 0.7);
+    else if (phase === "chosen") playSfx("selectConfirm", 0.7);
+  }, [phase, hold]);
 
   // --- matrix selection ---------------------------------------------------
   // The rule walks the left address column first, then continues down the
@@ -122,6 +178,7 @@ function Terminal() {
         const step = e.key === "ArrowDown" ? 1 : count - 1;
         selRef.current = (selRef.current + step) % count;
         setSelIndex(selRef.current);
+        playSfx("selectMove", 0.4);
       } else if (e.key === "Enter" && selRef.current === INTERFACE_ROW) {
         chooseInterface();
       }
@@ -175,6 +232,7 @@ function Terminal() {
         shown: 0,
         holdUntil: performance.now() + PRINT_LEAD_MS,
       });
+      playTypeLine(0.55);
     }
   }, [ready, typing, kick]);
 
@@ -230,9 +288,11 @@ function Terminal() {
       } else if (e.key === "Backspace") {
         editInput((i) => i.slice(0, -1));
         setPulse((p) => p + 1);
+        playSfx("selectMove", 0.18);
       } else if (e.key.length === 1) {
         editInput((i) => (i.length < MAX_INPUT ? i + e.key.toUpperCase() : i));
         setPulse((p) => p + 1);
+        playSfx("selectMove", 0.18);
       }
     };
     window.addEventListener("keydown", onKeyDown);

@@ -157,7 +157,9 @@ function pinnedPhase(pin: string | null): BootPhase {
   return 'glyph'
 }
 
-export function useMuthurBoot() {
+/** `hold` keeps the tube dark (glyph at zero) until the power switch —
+ *  see needsBootGate in index.tsx; releasing it starts the boot from t=0. */
+export function useMuthurBoot(hold = false) {
   const [{ pin, p }] = useState(readPin)
   const [phase, setPhase] = useState<BootPhase>(pinnedPhase(pin))
   const [glyphProgress, setGlyphProgress] = useState(pin === 'glyph' ? p : 0)
@@ -169,7 +171,7 @@ export function useMuthurBoot() {
   const chooseTimeouts = useRef<number[]>([])
 
   useEffect(() => {
-    if (pin) return
+    if (pin || hold) return
     const schedule = makeSchedule()
     const start = performance.now()
     const id = window.setInterval(() => {
@@ -204,7 +206,7 @@ export function useMuthurBoot() {
       setMatrix(null)
       setStreaks([])
     }
-  }, [pin])
+  }, [pin, hold])
 
   // The waiting matrix still throws the odd phosphor streak
   useEffect(() => {

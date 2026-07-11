@@ -24,6 +24,8 @@ export interface ExhibitMeta {
   status: ExhibitStatus
   /** Lazy fullscreen component — required once status is 'online' */
   component?: LazyExoticComponent<ComponentType>
+  /** Exhibit plays audio — the chrome shows the SOUND toggle */
+  sound?: boolean
   /**
    * Documented deviations from the source material. Every trade-off between
    * accuracy and usability goes here; shown as "restoration notes" on the

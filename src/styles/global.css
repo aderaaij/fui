@@ -279,6 +279,11 @@ a.archive-row:focus-visible .row-idx {
   letter-spacing: 0.06em;
 }
 
+.stage-actions {
+  display: flex;
+  gap: 1.25rem;
+}
+
 .stage-notes {
   position: fixed;
   right: 1rem;
