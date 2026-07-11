@@ -13,6 +13,8 @@ export interface CRTParams {
   phosphor: number
   /** Phosphor color as a hex string */
   tint: string
+  /** 0–1 bleach of HDR-hot content toward yellow-white (overexposed stock) */
+  overdrive: number
   /** Per-frame grain amplitude */
   noise: number
   /** Mains-hum brightness flicker amplitude — keep subtle */
@@ -36,6 +38,7 @@ export class CRTEffect extends Effect {
         ['uScanlineCount', new Uniform(params.scanlineCount)],
         ['uPhosphor', new Uniform(params.phosphor)],
         ['uTint', new Uniform(new Color(params.tint))],
+        ['uOverdrive', new Uniform(params.overdrive)],
         ['uNoise', new Uniform(params.noise)],
         ['uFlicker', new Uniform(params.flicker)],
         ['uVignette', new Uniform(params.vignette)],
@@ -51,6 +54,7 @@ export class CRTEffect extends Effect {
     u.get('uScanlineCount')!.value = p.scanlineCount
     u.get('uPhosphor')!.value = p.phosphor
     ;(u.get('uTint')!.value as Color).set(p.tint)
+    u.get('uOverdrive')!.value = p.overdrive
     u.get('uNoise')!.value = p.noise
     u.get('uFlicker')!.value = p.flicker
     u.get('uVignette')!.value = p.vignette

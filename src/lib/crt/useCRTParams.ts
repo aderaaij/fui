@@ -18,6 +18,7 @@ export function useCRTParams(preset: CRTPresetName): CRTParams {
       scanlineCount: { value: base.scanlineCount, min: 0, max: 1200, step: 1 },
       phosphor: { value: base.phosphor, min: 0, max: 1 },
       tint: base.tint,
+      overdrive: { value: base.overdrive, min: 0, max: 1 },
       noise: { value: base.noise, min: 0, max: 0.5 },
       flicker: { value: base.flicker, min: 0, max: 0.2 },
       vignette: { value: base.vignette, min: 0, max: 1.5 },
