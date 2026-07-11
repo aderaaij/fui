@@ -50,12 +50,17 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   float scan = 0.5 + 0.5 * sin(cuv.y * lineCount * 6.2831853);
   color *= 1.0 - uScanlineIntensity * scan;
 
-  // Broadcast grain
-  float grain = hash21(cuv * resolution.xy + vec2(time * 61.0, time * 17.0));
+  // Broadcast grain. `time` grows unbounded and large values wreck float
+  // precision inside hash21's fract() — the grain slowly degrades into a
+  // creeping moiré. Wrap it: the grain re-rolls every frame anyway, so the
+  // 8s seam is invisible.
+  float tGrain = mod(time, 8.0);
+  float grain = hash21(cuv * resolution.xy + vec2(tGrain * 61.0, tGrain * 17.0));
   color += (grain - 0.5) * uNoise;
 
-  // Mains-hum flicker
-  color *= 1.0 - uFlicker * (0.5 + 0.5 * sin(time * 73.0));
+  // Mains-hum flicker. Same precision hazard in sin(); the frequency is an
+  // integer multiple of the 2π wrap, so the phase stays continuous.
+  color *= 1.0 - uFlicker * (0.5 + 0.5 * sin(mod(time, 6.2831853) * 73.0));
 
   // Tube vignette, fading to true black exactly at the glass edge
   float vig = pow(16.0 * cuv.x * cuv.y * (1.0 - cuv.x) * (1.0 - cuv.y), uVignette);
