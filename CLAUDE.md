@@ -22,3 +22,28 @@ Conventions:
   postprocessing effect shaders.
 - In-scene text uses drei `<Text>` with self-hosted OFL fonts from
   `src/assets/fonts/` (MU/TH/UR screens: Graduate; DOM chrome: VT323).
+
+Performance (exhibits run fullscreen at dpr 2 — the postprocessing chain is
+the whole GPU budget, scene geometry is noise):
+
+- Always pass `multisampling={0}` to `<EffectComposer>`. The default is 8x
+  MSAA on a half-float target — pure bandwidth here, since scenes are SDF
+  text and axis-aligned quads and the CRT pass resamples the buffer through
+  barrel distortion anyway. This alone took MU/TH/UR from ~50fps to
+  vsync-capped.
+- Wide-kernel effects must not tap the full-res frame — a >10px stride
+  defeats the texture cache. Render the thresholded/prefiltered source into
+  a small internal RT in `Effect.update()` and tap that; the kernel stays
+  identical. `HorizontalSmearEffect`'s half-res brightpass is the pattern
+  (uses `initialize`/`setSize`/`update`/`dispose` like BloomEffect does).
+- R3F's `<Bloom>` blends ADD, so plain 1.0-white text composes above HDR
+  thresholds like the smear's 1.25 floor. Don't "optimize" by skipping HDR
+  passes on quiet screens — bloomed text feeds them; the image would change.
+- `gl={{ depth: false, stencil: false }}` on `<Canvas>`: the default
+  framebuffer only receives the composer's final quad.
+- Fetch each shader texel once — the CRT pass reuses its center sample for
+  both the green channel and marker-ink detection.
+- Measuring: use the dev pins (`/muthur?boot=glyph|matrix|ready`) plus an
+  rAF-delta sampler in the console. The tab must be focused — rAF stops and
+  dpr may read 1 when it isn't — and treat p50/p95 frame time as the metric,
+  not fps: displays here are 120Hz ProMotion, so the real budget is 8.3ms.
