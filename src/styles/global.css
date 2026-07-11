@@ -269,6 +269,17 @@ a.archive-row:focus-visible .row-idx {
   gap: 1rem;
   padding: 0.7rem 1rem;
   text-shadow: 0 0 8px rgba(109, 255, 160, 0.6);
+  transition: opacity 0.6s ease;
+}
+
+/* Idle: the chrome cedes the screen to the exhibit until the pointer moves */
+.stage-idle {
+  cursor: none;
+}
+
+.stage-idle .stage-hud {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .stage-hud a:hover {
