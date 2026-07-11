@@ -8,11 +8,21 @@ import { HorizontalSmear } from '@/lib/crt/HorizontalSmear'
 import { useCRTParams, useSmearParams } from '@/lib/crt/useCRTParams'
 import { useBlink } from '@/lib/terminal/useBlink'
 import { useBootSequence } from '@/lib/terminal/useBootSequence'
-import fontUrl from '@/assets/fonts/VT323-Regular.ttf'
+import fontUrl from '@/assets/fonts/vt323/VT323-Regular.ttf'
+import matrixFontUrl from '@/assets/fonts/graduate/Graduate-Regular.ttf'
 import { CircuitGlyph } from './CircuitGlyph'
-import { CHARSET, COLS, ROWS } from './matrix'
+import {
+  CHARSET,
+  COLS,
+  COLUMN_OFFSETS,
+  MATRIX_ROWS,
+  MATRIX_START_ROW,
+  ROWS,
+  TITLE,
+  TITLE_ROW,
+} from './matrix'
 import { INTERFACE_SCRIPT, respond } from './muthur'
-import { useMuthurBoot, type Streak } from './useMuthurBoot'
+import { useMuthurBoot, type MatrixReveal, type Streak } from './useMuthurBoot'
 
 const MAX_ROWS = 16
 const MAX_INPUT = 42
@@ -94,11 +104,14 @@ function Terminal() {
     return (
       <>
         <CircuitGlyph progress={boot.glyphProgress} />
-        {/* Warm the SDF atlas while the glyph plays, so the storm's text
-            renders from its first tick on cold loads. Own boundary so its
-            font load never hides the glyph. */}
+        {/* Warm both SDF atlases while the glyph plays, so the storm and
+            matrix render from their first tick on cold loads. Own boundary
+            so the font loads never hide the glyph. */}
         <Suspense fallback={null}>
           <Text font={fontUrl} fontSize={0.001} fillOpacity={0} position={[0, 0, -1]}>
+            {CHARSET}
+          </Text>
+          <Text font={matrixFontUrl} fontSize={0.001} fillOpacity={0} position={[0, 0, -1]}>
             {CHARSET}
           </Text>
         </Suspense>
@@ -106,10 +119,26 @@ function Terminal() {
     )
   }
 
+  // Each screen gets its own suspense boundary: if a font is still loading,
+  // only that screen waits — suspending the top boundary would pause the
+  // whole R3F frameloop (no CRT pass, black tube)
+  if ((boot.phase === 'resolve' || boot.phase === 'stable') && boot.matrix) {
+    return (
+      <>
+        <Suspense fallback={null}>
+          <MatrixScreen reveal={boot.matrix} />
+        </Suspense>
+        <Streaks streaks={boot.streaks} />
+      </>
+    )
+  }
+
   if (!ready) {
     return (
       <>
-        <Screen text={boot.text} />
+        <Suspense fallback={null}>
+          <Screen text={boot.text} />
+        </Suspense>
         <Streaks streaks={boot.streaks} />
       </>
     )
@@ -117,7 +146,63 @@ function Terminal() {
 
   const rows = [...introLines, ...session].slice(-MAX_ROWS)
   const promptRow = online && !pending ? `\n> ${input}${cursorOn ? '█' : ' '}` : ''
-  return <Screen text={rows.join('\n') + promptRow} />
+  return (
+    <Suspense fallback={null}>
+      <Screen text={rows.join('\n') + promptRow} />
+    </Suspense>
+  )
+}
+
+// Column x positions as fractions of content width, measured from frame 48
+const COLUMN_FRACS = [0, 0.29, 0.55, 0.85]
+// The film's screens use City Light "optically stretched" — same trick here
+const STRETCH = 1.2
+
+/**
+ * The OVERMONITORING ADDRESS MATRIX in Graduate (stand-in for the film's
+ * stretched City Light). Graduate is proportional, so the matrix renders as
+ * four positioned columns instead of relying on monospace padding; the
+ * reveal still types left-to-right across the whole padded line.
+ */
+function MatrixScreen({ reveal }: { reveal: MatrixReveal }) {
+  const viewport = useThree((s) => s.viewport)
+  const availW = viewport.width * 0.88
+  const availH = viewport.height * 0.88
+  const fontSize = availH / (ROWS * 1.42)
+  const rowH = fontSize * 1.42
+  const contentW = availW / STRETCH
+
+  const textProps = {
+    font: matrixFontUrl,
+    fontSize,
+    color: '#ffffff',
+    anchorX: 'left',
+    anchorY: 'top',
+    lineHeight: 1.42,
+    letterSpacing: 0.08,
+    whiteSpace: 'nowrap',
+  } as const
+
+  const columns = COLUMN_OFFSETS.map((offset, k) =>
+    MATRIX_ROWS.map((row, i) => {
+      const cell = row[k]
+      const revealed = Math.max(0, Math.min(cell.length, reveal.lineChars[i] - offset))
+      return cell.slice(0, revealed)
+    }).join('\n'),
+  )
+
+  return (
+    <group position={[-availW / 2, availH / 2, 0]} scale={[STRETCH, 1, 1]}>
+      <Text {...textProps} position={[0, -rowH * TITLE_ROW, 0]}>
+        {TITLE.slice(0, reveal.titleChars)}
+      </Text>
+      {columns.map((column, k) => (
+        <Text key={k} {...textProps} position={[contentW * COLUMN_FRACS[k], -rowH * MATRIX_START_ROW, 0]}>
+          {column}
+        </Text>
+      ))}
+    </group>
+  )
 }
 
 function Screen({ text }: { text: string }) {

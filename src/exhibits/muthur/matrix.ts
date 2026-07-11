@@ -11,8 +11,8 @@ export const MATRIX_START_ROW = 4
 
 export const TITLE = 'OVERMONITORING  ADDRESS  MATRIX'
 
-// [label, value, label, value] — columns at 0 / 14 / 28 / 44
-const MATRIX_ROWS: [string, string, string, string][] = [
+// [label, value, label, value] — columns at char offsets 0 / 14 / 28 / 44
+export const MATRIX_ROWS: [string, string, string, string][] = [
   ['CRFX', 'OM2077AM', 'L ALLIGNMENT', 'SM2093'],
   ['ATTITUDE', 'SM2078', 'PHOTO F', 'SM2094'],
   ['WASTE HEAT', '2080', 'MAINS', ''],
@@ -29,18 +29,12 @@ const MATRIX_ROWS: [string, string, string, string][] = [
   ['OVERLOCK', 'M2091', '0%', 'M3003AM'],
 ]
 
+/** Char offset where each column starts within a padded line (reveal math) */
+export const COLUMN_OFFSETS = [0, 14, 28, 44]
+
 export const MATRIX_LINES: string[] = MATRIX_ROWS.map(([a, b, c, d]) =>
   (a.padEnd(14) + b.padEnd(14) + c.padEnd(16) + d).trimEnd(),
 )
-
-export function targetScreen(): string[] {
-  const rows = Array.from({ length: ROWS }, () => '')
-  rows[TITLE_ROW] = TITLE
-  MATRIX_LINES.forEach((line, i) => {
-    rows[MATRIX_START_ROW + i] = line
-  })
-  return rows
-}
 
 /** Verbatim garbage fragments visible in the film's raster-noise phase. */
 export const STORM_FRAGMENTS = [

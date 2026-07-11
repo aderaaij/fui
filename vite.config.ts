@@ -11,4 +11,12 @@ export default defineConfig({
       '@': path.resolve(import.meta.dirname, 'src'),
     },
   },
+  server: {
+    watch: {
+      // FSEvents-based watching silently dies on this machine, leaving the
+      // dev server serving stale transforms; polling is reliable
+      usePolling: true,
+      interval: 300,
+    },
+  },
 })

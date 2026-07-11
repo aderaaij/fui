@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react'
-import {
-  COLS,
-  MATRIX_LINES,
-  MATRIX_START_ROW,
-  ROWS,
-  STORM_FRAGMENTS,
-  STORM_GLYPHS,
-  targetScreen,
-  TITLE,
-  TITLE_ROW,
-} from './matrix'
+import { COLS, MATRIX_LINES, ROWS, STORM_FRAGMENTS, STORM_GLYPHS, TITLE } from './matrix'
 
 export type BootPhase = 'glyph' | 'storm' | 'resolve' | 'stable' | 'ready'
+
+/** How much of the address matrix has typed in, in padded-line chars. */
+export interface MatrixReveal {
+  titleChars: number
+  lineChars: number[]
+}
+
+const FULL_MATRIX: MatrixReveal = {
+  titleChars: TITLE.length,
+  lineChars: MATRIX_LINES.map((l) => l.length),
+}
 
 export type StreakKind = 'hair' | 'glow' | 'hot'
 
@@ -107,40 +108,40 @@ function makeSchedule(): RowSchedule[] {
   })
 }
 
-function resolveScreen(p: number, schedule: RowSchedule[]): string[] {
-  const rows = Array.from({ length: ROWS }, () => '')
-  rows[TITLE_ROW] = TITLE.slice(0, Math.floor(Math.min(1, p * 1.6) * TITLE.length))
-  MATRIX_LINES.forEach((line, i) => {
-    const { start, end } = schedule[i]
-    const t = Math.min(1, Math.max(0, (p - start) / (end - start)))
-    rows[MATRIX_START_ROW + i] = line.slice(0, Math.floor(t * line.length))
-  })
-  const grid = rows.map((row) => row.padEnd(COLS).split(''))
-  for (let i = 0, n = rand(4); i < n; i++) {
-    grid[rand(ROWS)][rand(COLS)] = chance(0.5) ? '█' : '_'
+function resolveMatrix(p: number, schedule: RowSchedule[]): MatrixReveal {
+  return {
+    titleChars: Math.floor(Math.min(1, p * 1.6) * TITLE.length),
+    lineChars: MATRIX_LINES.map((line, i) => {
+      const { start, end } = schedule[i]
+      const t = Math.min(1, Math.max(0, (p - start) / (end - start)))
+      return Math.floor(t * line.length)
+    }),
   }
-  return joinGrid(grid)
 }
 
 /**
  * Drives MU/TH/UR's wake-up: raster-noise storm → the address matrix typing
  * itself in → stable hold → 'ready' (hand-off to the inquiry interface).
  */
+// Dev pins: /muthur?boot=glyph[&p=0.6] freezes the wake-up glyph,
+// ?boot=matrix freezes the stable address matrix — for tuning against the
+// reference frames. Read once; applied as initial state so no mid-suspense
+// phase flip happens at mount.
+function readPin() {
+  const params = new URLSearchParams(window.location.search)
+  return { pin: params.get('boot'), p: Number(params.get('p') ?? '1') }
+}
+
 export function useMuthurBoot() {
-  const [phase, setPhase] = useState<BootPhase>('glyph')
-  const [glyphProgress, setGlyphProgress] = useState(0)
+  const [{ pin, p }] = useState(readPin)
+  const [phase, setPhase] = useState<BootPhase>(pin === 'matrix' ? 'stable' : 'glyph')
+  const [glyphProgress, setGlyphProgress] = useState(pin === 'glyph' ? p : 0)
   const [screen, setScreen] = useState<string[]>([])
+  const [matrix, setMatrix] = useState<MatrixReveal | null>(pin === 'matrix' ? FULL_MATRIX : null)
   const [streaks, setStreaks] = useState<Streak[]>([])
 
   useEffect(() => {
-    // Dev pin: /muthur?boot=glyph[&p=0.6] freezes the wake-up glyph for
-    // tuning against the reference frames
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('boot') === 'glyph') {
-      setPhase('glyph')
-      setGlyphProgress(Number(params.get('p') ?? '1'))
-      return
-    }
+    if (pin) return
     const schedule = makeSchedule()
     const start = performance.now()
     const id = window.setInterval(() => {
@@ -154,16 +155,18 @@ export function useMuthurBoot() {
       } else if (t < GLYPH_MS + STORM_MS + RESOLVE_MS) {
         const p = (t - GLYPH_MS - STORM_MS) / RESOLVE_MS
         setPhase('resolve')
-        setScreen(resolveScreen(p, schedule))
+        setScreen([])
+        setMatrix(resolveMatrix(p, schedule))
         setStreaks(makeStreaks(0, 3, 1 - p * 0.6))
       } else if (t < GLYPH_MS + STORM_MS + RESOLVE_MS + STABLE_MS) {
         setPhase('stable')
-        setScreen(targetScreen())
+        setMatrix(FULL_MATRIX)
         setStreaks(makeStreaks(0, 1, 0.12))
       } else {
         window.clearInterval(id)
         setPhase('ready')
         setScreen([])
+        setMatrix(null)
         setStreaks([])
       }
     }, TICK_MS)
@@ -172,9 +175,10 @@ export function useMuthurBoot() {
       setPhase('glyph')
       setGlyphProgress(0)
       setScreen([])
+      setMatrix(null)
       setStreaks([])
     }
-  }, [])
+  }, [pin])
 
-  return { phase, glyphProgress, text: screen.join('\n'), streaks }
+  return { phase, glyphProgress, text: screen.join('\n'), matrix, streaks }
 }

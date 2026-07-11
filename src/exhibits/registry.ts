@@ -20,7 +20,7 @@ export const exhibits: ExhibitMeta[] = [
       "The wake-up then recreates the film frame by frame: a raster-noise storm resolving into the OVERMONITORING ADDRESS MATRIX, transcribed verbatim — including the film's own spelling 'ALLIGNMENT'.",
       "In the film the address matrix and the Interface 2037 inquiry screen are separate displays in MU/TH/UR's core; here the matrix hands off to the inquiry screen so the exhibit stays usable.",
       "The film shot live 1979 CRTs; phosphor color, glow smears, curvature and scanlines are shader approximations tuned against the reference frames.",
-      "Typeface is VT323, a DEC VT320 revival — the film's wider, machined face is still unidentified; tracking is widened to approximate it.",
+      "The film's screen face is Berthold City Light, optically stretched (per Typeset in the Future). The matrix uses Graduate — an open square slab — stretched the same way; the terminal keeps VT323 for licensing reasons.",
       'MU/TH/UR answers a small set of inquiries, as in the film. Ask her about Special Order 937.',
     ],
   },
