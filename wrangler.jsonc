@@ -1,0 +1,14 @@
+// Deployed as a Cloudflare Worker with static assets (Workers Builds picks
+// this up on every push — build `pnpm build`, output `dist/`). Assets-only:
+// no Worker script, so no `main`.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fui",
+  "compatibility_date": "2026-07-11",
+  "assets": {
+    "directory": "./dist",
+    // The archive is a React Router SPA — deep links like /muthur must
+    // fall back to index.html instead of 404ing
+    "not_found_handling": "single-page-application"
+  }
+}
