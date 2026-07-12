@@ -66,9 +66,14 @@ export function CircuitGlyph({ progress }: { progress: number }) {
     texture.needsUpdate = true
   }, [progress, state])
 
+  // The glyph canvas is 4:3 like the film's tube — fit it inside the
+  // viewport at its own aspect, centered (as the matrix does): height-bound
+  // on landscape screens, width-bound on portrait glass. Stretching it to
+  // the viewport squashed the mandala anywhere that isn't 4:3.
+  const fit = Math.min(viewport.width / CANVAS_W, viewport.height / CANVAS_H)
   return (
     <mesh>
-      <planeGeometry args={[viewport.width, viewport.height]} />
+      <planeGeometry args={[CANVAS_W * fit, CANVAS_H * fit]} />
       <meshBasicMaterial map={state.texture} transparent toneMapped={false} />
     </mesh>
   )

@@ -79,6 +79,10 @@ button:hover {
     transparent 0 2px,
     rgba(0, 0, 0, 0.22) 2px 4px
   );
+  /* The flicker lives on the overlay, NOT on an ancestor of the content:
+     an infinite opacity animation on a parent is exactly the setup where
+     iOS Safari drops children's short reveal animations mid-load. */
+  animation: phosphor-flicker 6s infinite;
 }
 
 .crt-dom::after {
@@ -90,14 +94,19 @@ button:hover {
   background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.6) 100%);
 }
 
-/* Line-by-line boot reveal: set --i per element */
+/* Line-by-line boot reveal: set --i per element. The element RESTS visible;
+   only the pending animation's backwards fill hides it. Never gate visibility
+   on an animation completing (opacity: 0 + forwards) — iOS Safari can drop a
+   short delayed animation during load, which left rows invisible forever. */
 .boot {
-  opacity: 0;
-  animation: boot-in 0.05s steps(1) forwards;
+  animation: boot-in 0.05s steps(1, end) both;
   animation-delay: calc(var(--i, 0) * 95ms);
 }
 
 @keyframes boot-in {
+  from {
+    opacity: 0;
+  }
   to {
     opacity: 1;
   }
@@ -150,7 +159,6 @@ button:hover {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  animation: phosphor-flicker 6s infinite;
 }
 
 .archive-sys {
@@ -358,7 +366,7 @@ a.archive-row:active .row-idx {
     animation-delay: 0s;
   }
 
-  .archive-inner {
+  .crt-dom::before {
     animation: none;
   }
 
