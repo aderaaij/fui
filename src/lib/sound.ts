@@ -28,6 +28,13 @@ export function setMuted(next: boolean) {
   listeners.forEach((l) => l(next))
 }
 
+/** Session-only mute — the screensaver entry silences the archive without
+ *  touching the visitor's persisted preference. */
+export function muteForSession() {
+  muted = true
+  listeners.forEach((l) => l(true))
+}
+
 export function onMutedChange(listener: (muted: boolean) => void) {
   listeners.add(listener)
   return () => {

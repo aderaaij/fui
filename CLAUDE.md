@@ -13,6 +13,18 @@ architecture; the short version:
 - Every accuracy/usability trade-off gets an entry in the exhibit's
   `accuracyNotes` in the registry — it renders as "restoration notes".
 
+- `screensaver.html` is a second Vite entry: MU/TH/UR alone in attract
+  mode — `src/exhibits/muthur/attract.ts` plays the operator through the
+  same synthetic keydowns the touch keyboard sends (scripted inquiries
+  only, never the Worker), then reloads as the loop seam. It mutes for
+  the session, which also waves off the POWER ON gate. Point a fullscreen
+  kiosk tab at `/screensaver.html` — or build the macOS screensaver:
+  `saver/build.sh [--install]` packs a self-contained HTML (vite `saver`
+  mode + `scripts/inline-saver.mjs`; troika must run workerless on file://)
+  into a WKWebView `.saver`, universal, ad-hoc signed. Verify with
+  `saver/test-host.swift` — it loads the bundle like the engine and
+  snapshots the web view.
+
 - `worker/` is the Cloudflare Worker behind `/api/*` — MU/TH/UR's live
   inquiry endpoint. The scripted table in `src/exhibits/muthur/muthur.ts`
   answers film inquiries client-side; only unmatched ones hit the Worker,

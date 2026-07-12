@@ -9,8 +9,15 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-saver
 dist-ssr
 *.local
+
+# assembled screensaver bundles (saver/build.sh output)
+saver/build/
+
+# local demo captures
+muthur-demo*.mp4
 
 # reference footage for animation analysis (copyrighted, stays local)
 reference/

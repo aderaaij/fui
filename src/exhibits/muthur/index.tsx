@@ -34,6 +34,7 @@ import {
   stopTypeLoop,
 } from "./audio";
 import { INTERFACE_TITLE, respond } from "./muthur";
+import { useAttract } from "./attract";
 import "./boot-gate.css";
 import {
   useMuthurBoot,
@@ -303,6 +304,9 @@ function Terminal({
   const inputRef = useRef("");
   const lockedRef = useRef(true);
   const replyTimeout = useRef(0);
+
+  // Screensaver builds play the operator themselves (no-op otherwise)
+  useAttract(phase, locked);
 
   useEffect(() => () => window.clearTimeout(replyTimeout.current), []);
 
