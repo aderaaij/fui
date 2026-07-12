@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Online exhibits only; add a URL when a restoration in
+     src/exhibits/registry.ts comes online. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://fui.arden.nl/</loc>
+  </url>
+  <url>
+    <loc>https://fui.arden.nl/muthur</loc>
+  </url>
+</urlset>

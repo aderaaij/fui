@@ -50,6 +50,19 @@ export function ExhibitPage() {
   const { visible: hudVisible, hoverRef } = useAutoHideHud(notesOpen)
   const meta = getExhibit(exhibitId)
 
+  // Every route serves the same index.html, so title and canonical follow
+  // the exhibit here; the static tags in index.html describe the archive.
+  useEffect(() => {
+    if (!meta || meta.status !== 'online') return
+    const canonical = document.querySelector('link[rel="canonical"]')
+    document.title = `${meta.title} — FUI ARCHIVE`
+    canonical?.setAttribute('href', `https://fui.arden.nl/${meta.id}`)
+    return () => {
+      document.title = 'FUI ARCHIVE'
+      canonical?.setAttribute('href', 'https://fui.arden.nl/')
+    }
+  }, [meta])
+
   // Escape backs out one layer: notes first, then the exhibit itself
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

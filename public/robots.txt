@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://fui.arden.nl/sitemap.xml
