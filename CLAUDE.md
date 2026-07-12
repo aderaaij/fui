@@ -57,3 +57,42 @@ the whole GPU budget, scene geometry is noise):
   rAF-delta sampler in the console. The tab must be focused — rAF stops and
   dpr may read 1 when it isn't — and treat p50/p95 frame time as the metric,
   not fps: displays here are 120Hz ProMotion, so the real budget is 8.3ms.
+
+Audio (exhibit sound is the film's own, cut from the reference material —
+`src/exhibits/muthur/audio.ts` is the reference implementation):
+
+- `scripts/grab-audio.sh <name> <url|file> <start> <dur> [noise] [gap]
+  [denoise]` → `reference/<name>/audio/`: cached clip.wav, map.png
+  (waveform over log spectrogram, 1s gridlines), events.tsv, and each
+  silencedetect event cut to wav+m4a with 30ms pads, 6ms fades, peaks at
+  -1dBFS. Film beds run hot: nothing splits at the default -35dB until
+  `noise` sits ~4-8dB above the clip's volumedetect mean. Note grab-ref's
+  local-file cuts are `-an` — only URL-downloaded clips carry audio.
+- afftdn only bites when `nf` is raised to the measured bed level; the
+  sampled noise profile alone does nothing against a bed far above the
+  default -50dB floor (we measured 0.3dB of reduction until nf moved).
+  The script's denoise flag handles both: profile from the longest
+  event-free gap, nf = gap mean + 4dB.
+- Film dialogue sits center in the stereo mix, electronics wide — rebuild
+  a cue from the side channel (`pan=1c|c0=0.5*c0+-0.5*c1` on the original
+  stereo clip.mp4) to edit a voice out, then de-hiss: the side sits
+  ~25dB down. Locate and verify speech with whisper-cli; brew's bundled
+  `for-tests-ggml-tiny.bin` is a random-weight stub — fetch a real
+  ggml model from HF (ggerganov/whisper.cpp).
+- Loops ship as WAV — AAC priming samples click at the seam. Seamless
+  recipe: `main = X[f:end]`, `head = X[0:f]`, `acrossfade=d=f`; the tail
+  crossfades into material that continues exactly where the loop restarts.
+  Too-short beds extend with offset + `areverse` copies crossfaded in
+  series (reversed stationary noise is indistinguishable and kills the
+  repeat pattern). Verify: `-stream_loop` a copy and spectrogram it (the
+  seam must be invisible), and keep first↔last sample delta under the
+  signal's own RMS.
+- One-shots ship as m4a/aac 160k (Safari plays no ogg). App-side rules,
+  all in muthur/audio.ts: every source routes through one master gain
+  wired to the `src/lib/sound.ts` mute store; cues that can't start
+  within ~0.6s are dropped, never queued (a cold tab must not dump the
+  backlog on first keypress); pointerdown/keydown listeners resume the
+  context inside the gesture; direct visits gate the boot behind POWER ON
+  (`navigator.userActivation.hasBeenActive`) so the sequence plays scored.
+  Sound that must match a variable duration is a start/stop loop with
+  attack/release ramps (the typing ratchet), not a one-shot.
