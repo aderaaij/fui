@@ -29,6 +29,7 @@ export const exhibits: ExhibitMeta[] = [
       "The film's screen face is Berthold City Light, optically stretched (per Typeset in the Future). Every screen on this tube renders Graduate — an open square slab — under the same optical stretch; City's license keeps the original out of reach.",
       "The film's own inquiries — Special Order 937, the crew, the signal — answer verbatim from a scripted table. Anything else is synthesized live by a language model held to MU/TH/UR's register and 2122 shipboard knowledge, so free inquiry is an extrapolation of her, not the film; the terminal's charset and line grid clamp whatever she says.",
       "The synthesis runs on a small daily budget. When it runs out the exhibit silently degrades to its fully scripted self: unscripted inquiries get the film's own UNABLE TO CLARIFY, and the scripted records keep answering. Ask her about Special Order 937.",
+      "MU/TH/UR answered to a keyboard in a landscape tube, and desktop keeps that — arrows, ENTER, nothing to click. Touch screens get the necessary heresies: the matrix shrinks to fit portrait glass and opens its row spacing, a tap walks the selection rule (a second tap on INTERFACE 2037 opens it), and your device's own keyboard stands in for the Nostromo's — tap the tube to raise it.",
     ],
   },
   {

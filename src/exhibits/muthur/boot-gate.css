@@ -14,3 +14,18 @@
   padding: 0.45rem 1.6rem;
   text-shadow: 0 0 8px rgba(109, 255, 160, 0.6);
 }
+
+/* The touch keyboard's hidden input (see TouchTyping in index.tsx): kept
+   focusable and nominally on-screen, invisible on the tube. 16px font —
+   anything smaller makes iOS zoom the page when it focuses. */
+.muthur-touch-input {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  opacity: 0;
+  font-size: 16px;
+  border: none;
+  pointer-events: none;
+}

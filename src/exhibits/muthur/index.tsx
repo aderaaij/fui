@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
@@ -66,8 +66,14 @@ function needsBootGate() {
   return !(navigator.userActivation?.hasBeenActive ?? true);
 }
 
+/** Coarse primary pointer = phones/tablets. Desktop (even with a touch
+ *  screen behind a mouse) stays keyboard-only, per the film. */
+const coarsePointer = () => window.matchMedia("(pointer: coarse)").matches;
+
 export default function MuthurExhibit() {
   const [gated, setGated] = useState(needsBootGate);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
+  const [coarse] = useState(coarsePointer);
   return (
     <>
       {/* depth/stencil off: the default framebuffer only ever receives the
@@ -80,10 +86,11 @@ export default function MuthurExhibit() {
       >
         <color attach="background" args={["#040604"]} />
         <Suspense fallback={null}>
-          <Terminal hold={gated} />
+          <Terminal hold={gated} onInquiryOpen={setInquiryOpen} />
         </Suspense>
         <Effects />
       </Canvas>
+      {coarse && inquiryOpen && <TouchTyping />}
       {gated && (
         <div className="muthur-boot-gate">
           <button
@@ -129,6 +136,74 @@ function Effects() {
   );
 }
 
+/**
+ * Touch keyboard for the inquiry screen. Phones have no hardware keyboard
+ * and the terminal listens on window, so a visually-hidden input summons
+ * the OS keyboard when the tube is tapped and replays its edits as the key
+ * events the terminal already understands. Edits are read by diffing the
+ * input's value — not from key events, which composing IMEs report as
+ * 'Unidentified' — so swipe/autocorrect keyboards land correctly too.
+ */
+function TouchTyping() {
+  const ref = useRef<HTMLInputElement>(null);
+  const last = useRef("");
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // Focus must live inside the tap gesture or the OS keyboard stays down;
+    // taps on the archive chrome keep their own meaning
+    const focus = (e?: Event) => {
+      if (
+        e?.target instanceof Element &&
+        e.target.closest("button, a, .stage-notes")
+      )
+        return;
+      el.focus({ preventScroll: true });
+    };
+    focus();
+    window.addEventListener("pointerdown", focus);
+    return () => window.removeEventListener("pointerdown", focus);
+  }, []);
+
+  const send = (key: string) =>
+    window.dispatchEvent(new KeyboardEvent("keydown", { key }));
+
+  return (
+    <input
+      ref={ref}
+      className="muthur-touch-input"
+      type="text"
+      maxLength={MAX_INPUT}
+      autoCapitalize="characters"
+      autoComplete="off"
+      autoCorrect="off"
+      spellCheck={false}
+      enterKeyHint="send"
+      aria-label="INQUIRY"
+      onInput={(e) => {
+        const val = e.currentTarget.value;
+        const prev = last.current;
+        let p = 0;
+        while (p < prev.length && p < val.length && prev[p] === val[p]) p++;
+        for (let i = prev.length; i > p; i--) send("Backspace");
+        for (const ch of val.slice(p)) send(ch);
+        last.current = val;
+      }}
+      onKeyDown={(e) => {
+        // Real key events would double what onInput already replays; Enter
+        // is the exception — single-line inputs fire no input event for it
+        if (e.key === "Enter") {
+          send("Enter");
+          e.currentTarget.value = "";
+          last.current = "";
+        }
+        e.stopPropagation();
+      }}
+    />
+  );
+}
+
 /** A completed line on the inquiry screen; ruled underneath like the film's */
 interface TermLine {
   text: string;
@@ -142,11 +217,21 @@ interface Typing {
   holdUntil: number;
 }
 
-function Terminal({ hold }: { hold: boolean }) {
+function Terminal({
+  hold,
+  onInquiryOpen,
+}: {
+  hold: boolean;
+  onInquiryOpen: (open: boolean) => void;
+}) {
   const boot = useMuthurBoot(hold);
   const { phase, chooseInterface } = boot;
   const ready = phase === "ready";
   const cursorOn = useBlink();
+  const [coarse] = useState(coarsePointer);
+
+  // The DOM side mounts the touch keyboard once Interface 2037 is listening
+  useEffect(() => onInquiryOpen(ready), [ready, onInquiryOpen]);
 
   useEffect(() => {
     initMuthurAudio();
@@ -187,6 +272,22 @@ function Terminal({ hold }: { hold: boolean }) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [phase, chooseInterface]);
+
+  // Touch screens select by tap instead: one tap walks the rule to that
+  // address, a second tap on the live address opens it. Desktop keeps the
+  // film's keyboard-only control — onPick is never passed there.
+  const pickAddress = useCallback(
+    (index: number) => {
+      if (index === selRef.current) {
+        if (index === INTERFACE_ROW) chooseInterface();
+        return;
+      }
+      selRef.current = index;
+      setSelIndex(index);
+      playSfx("selectMove", 0.4);
+    },
+    [chooseInterface],
+  );
 
   // --- inquiry session ----------------------------------------------------
   // Lines land via a typewriter: queued replies reveal char by char behind a
@@ -358,6 +459,7 @@ function Terminal({ hold }: { hold: boolean }) {
             reveal={boot.matrix}
             phase={phase}
             selIndex={selIndex}
+            onPick={coarse && phase === "select" ? pickAddress : undefined}
           />
         </Suspense>
         <Streaks streaks={boot.streaks} />
@@ -407,6 +509,26 @@ const STRETCH = 1.2;
 // Average Graduate cap advance is ~0.66em + 0.08 tracking
 const CHAR_W = 0.74;
 
+// The tightest fit in the matrix, as char advances per unit of content
+// width: contentW / MATRIX_FIT is the largest fontSize whose cells never
+// run into the next column. Landscape tubes are height-bound well below
+// it, so this only bites on portrait/narrow screens — which otherwise
+// render the four columns on top of each other. 5% slack because CHAR_W
+// is an average advance, not a promise.
+const MATRIX_FIT =
+  Math.max(
+    TITLE.length * CHAR_W,
+    ...COLUMN_FRACS.map((frac, k) => {
+      const span = (COLUMN_FRACS[k + 1] ?? 1) - frac;
+      const maxLen = Math.max(...MATRIX_ROWS.map((row) => row[k].length));
+      return (maxLen * CHAR_W) / span;
+    }),
+  ) * 1.05;
+
+// The film's row pitch; portrait screens open it (capped) — see MatrixScreen
+const LINE_H = 1.42;
+const MAX_PITCH = 2.2;
+
 // Pure red is the CRT pass's marker ink: it prints as clean white with no
 // bloom or smear — the selection rule stays a crisp straight line
 const RULE_COLOR = new Color(1, 0, 0);
@@ -440,6 +562,7 @@ function MatrixScreen({
   reveal,
   phase,
   selIndex,
+  onPick,
 }: {
   reveal: MatrixReveal;
   phase: Extract<
@@ -447,15 +570,28 @@ function MatrixScreen({
     "resolve" | "stable" | "select" | "chosen" | "solo"
   >;
   selIndex: number;
+  /** Tap-to-select, passed only on coarse-pointer devices */
+  onPick?: (index: number) => void;
 }) {
   const viewport = useThree((s) => s.viewport);
+  const sizePx = useThree((s) => s.size);
+  /** World units per device-independent pixel */
+  const px = viewport.height / sizePx.height;
   const availW = viewport.width * 0.88;
   const availH = viewport.height * 0.88;
-  const fontSize = availH / (ROWS * 1.42);
-  const rowH = fontSize * 1.42;
   const contentW = availW / STRETCH;
-  const textProps = screenText(fontSize);
+  // Height-bound on landscape tubes (the film's framing); width-bound on
+  // portrait, where the height headroom instead opens the row pitch — the
+  // rows stay legible and make honest touch targets rather than huddling
+  // in a band at the top of the tube
+  const fontSize = Math.min(availH / (ROWS * LINE_H), contentW / MATRIX_FIT);
+  const pitch = Math.min(MAX_PITCH, Math.max(LINE_H, availH / (ROWS * fontSize)));
+  const rowH = fontSize * pitch;
+  const gridH = rowH * ROWS;
+  const textProps = { ...screenText(fontSize), lineHeight: pitch };
   const rowY = (i: number) => -rowH * (MATRIX_START_ROW + i);
+  // Glyphs sit half-leading below their row top once the pitch opens
+  const glyphDrop = (fontSize * (pitch - LINE_H)) / 2;
 
   const columns = COLUMN_OFFSETS.map((offset, k) =>
     MATRIX_ROWS.map((row, i) => {
@@ -483,7 +619,9 @@ function MatrixScreen({
   const ruleW = ruleEnd - ruleX;
 
   return (
-    <group position={[-availW / 2, availH / 2, 0]} scale={[STRETCH, 1, 1]}>
+    // gridH/2 centers the matrix vertically; on height-bound (landscape)
+    // tubes gridH === availH, so the film's framing is untouched
+    <group position={[-availW / 2, gridH / 2, 0]} scale={[STRETCH, 1, 1]}>
       {phase !== "solo" && (
         <>
           <Text {...textProps} position={[0, -rowH * TITLE_ROW, 0]}>
@@ -506,13 +644,42 @@ function MatrixScreen({
       )}
       {phase === "select" && (
         <mesh
-          position={[ruleX + ruleW / 2, rowY(selRow) - fontSize * 1.16, 0.05]}
+          position={[
+            ruleX + ruleW / 2,
+            rowY(selRow) - glyphDrop - fontSize * 1.16,
+            0.05,
+          ]}
           scale={[ruleW, 1, 1]}
         >
-          <planeGeometry args={[1, fontSize * 0.09]} />
+          {/* Sub-pixel type still needs a visible rule — floor it at ~1.5px */}
+          <planeGeometry args={[1, Math.max(fontSize * 0.09, px * 1.5)]} />
           <meshBasicMaterial color={RULE_COLOR} toneMapped={false} />
         </mesh>
       )}
+      {onPick &&
+        MATRIX_ROWS.map((_, i) =>
+          [0, 1].map((half) => (
+            <mesh
+              key={`${i}-${half}`}
+              position={[
+                contentW *
+                  (half ? (COLUMN_FRACS[2] + 1) / 2 : COLUMN_FRACS[2] / 2),
+                rowY(i) - rowH / 2,
+                0,
+              ]}
+              onPointerDown={() => onPick(i + half * MATRIX_ROWS.length)}
+            >
+              <planeGeometry
+                args={[
+                  contentW * (half ? 1 - COLUMN_FRACS[2] : COLUMN_FRACS[2]),
+                  rowH,
+                ]}
+              />
+              {/* Invisible hit quad: writes nothing, still raycasts */}
+              <meshBasicMaterial colorWrite={false} depthWrite={false} />
+            </mesh>
+          )),
+        )}
       {(phase === "chosen" || phase === "solo") && (
         <>
           <Text
@@ -611,6 +778,7 @@ function LineSlot({
   onWidth?: (w: number) => void;
 }) {
   const [w, setW] = useState(0);
+  const px = useThree((s) => s.viewport.height / s.size.height);
   const textProps = screenText(fontSize);
   return (
     <>
@@ -630,7 +798,8 @@ function LineSlot({
         position={[w / 2, y - fontSize * 1.26, 0.05]}
         scale={[Math.max(w, 0.0001), 1, 1]}
       >
-        <planeGeometry args={[1, fontSize * 0.07]} />
+        {/* Floored at ~1px: phone-width type would rule at sub-pixel */}
+        <planeGeometry args={[1, Math.max(fontSize * 0.07, px)]} />
         <meshBasicMaterial color="#ffffff" toneMapped={false} />
       </mesh>
     </>
@@ -815,14 +984,18 @@ function TerminalScreen({
   pulse: number;
 }) {
   const viewport = useThree((s) => s.viewport);
+  const sizePx = useThree((s) => s.size);
   const [activeW, setActiveW] = useState(0);
   const availW = viewport.width * 0.9;
   const availH = viewport.height * 0.9;
   const contentW = availW / STRETCH;
   const fontSize = Math.min(availH / (ROWS * 1.42), contentW / 43);
   const rowH = fontSize * 1.42;
-  // Headroom above the session, like the film's — also clears the HUD
-  const topPad = rowH * 1.6;
+  // Headroom above the session, like the film's — also clears the HUD.
+  // The HUD is fixed px while the type scales with the tube, so on narrow
+  // screens (tiny width-bound type) the film's headroom alone won't clear
+  // it: floor the pad at the HUD's height.
+  const topPad = Math.max(rowH * 1.6, (56 * viewport.height) / sizePx.height);
   const activeY = -topPad - rowH * lines.length;
 
   return (

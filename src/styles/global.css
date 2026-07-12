@@ -31,6 +31,7 @@ body {
   font-size: clamp(18px, 2.2vh, 24px);
   line-height: 1.3;
   overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
 ::selection {
@@ -189,7 +190,8 @@ button:hover {
 }
 
 a.archive-row:hover,
-a.archive-row:focus-visible {
+a.archive-row:focus-visible,
+a.archive-row:active {
   background: var(--phosphor);
   color: var(--bg);
   text-shadow: none;
@@ -201,7 +203,8 @@ a.archive-row:focus-visible {
 }
 
 a.archive-row:hover .row-idx,
-a.archive-row:focus-visible .row-idx {
+a.archive-row:focus-visible .row-idx,
+a.archive-row:active .row-idx {
   color: inherit;
 }
 
@@ -247,6 +250,12 @@ a.archive-row:focus-visible .row-idx {
   position: fixed;
   inset: 0;
   background: #000;
+}
+
+/* Touch: taps select and type — a double-tap must never zoom the tube */
+.stage,
+.stage canvas {
+  touch-action: manipulation;
 }
 
 .stage-loading {
@@ -301,6 +310,9 @@ a.archive-row:focus-visible .row-idx {
   bottom: 1rem;
   z-index: 10;
   max-width: min(34rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 7rem);
+  max-height: calc(100dvh - 7rem);
+  overflow-y: auto;
   padding: 1rem 1.25rem;
   background: rgba(3, 6, 4, 0.92);
   border: 1px solid var(--phosphor-dim);
@@ -323,6 +335,18 @@ a.archive-row:focus-visible .row-idx {
 .stage-notes li::before {
   content: '> ';
   color: var(--phosphor-dim);
+}
+
+/* Narrow screens: link + title + actions can't share the HUD row — drop the
+   title (the archive row the visitor tapped already names the exhibit) */
+@media (max-width: 640px) {
+  .stage-title {
+    display: none;
+  }
+
+  .stage-notes {
+    left: 1rem;
+  }
 }
 
 /* ---------------------------------------------------------------------------
