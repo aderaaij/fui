@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import { exhibits } from '@/exhibits/registry'
 
@@ -7,9 +7,20 @@ const boot = (i: number) => ({ '--i': i }) as CSSProperties
 export function IndexPage() {
   const online = exhibits.filter((e) => e.status === 'online').length
 
+  // The reveal is a transition off this class flip, not a delayed animation —
+  // see the .boot rules. Two rAFs put the flip a clean frame after the
+  // opacity-0 state has painted, so the stagger reliably transitions.
+  const [booted, setBooted] = useState(false)
+  useEffect(() => {
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => setBooted(true))
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [])
+
   return (
     <main className="archive crt-dom">
-      <div className="archive-inner">
+      <div className={booted ? 'archive-inner booted' : 'archive-inner'}>
         <p className="archive-sys boot" style={boot(0)}>
           FUI//ARCHIVE — NODE 07 — PUBLIC READ TERMINAL
         </p>

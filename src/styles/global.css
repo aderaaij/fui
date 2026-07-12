@@ -94,22 +94,21 @@ button:hover {
   background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.6) 100%);
 }
 
-/* Line-by-line boot reveal: set --i per element. The element RESTS visible;
-   only the pending animation's backwards fill hides it. Never gate visibility
-   on an animation completing (opacity: 0 + forwards) — iOS Safari can drop a
-   short delayed animation during load, which left rows invisible forever. */
-.boot {
-  animation: boot-in 0.05s steps(1, end) both;
-  animation-delay: calc(var(--i, 0) * 95ms);
+/* Line-by-line boot reveal: set --i per element, staggered by a zero-duration
+   transition once the page adds .booted after mount. NOT a delayed animation:
+   iOS Safari deterministically strands delayed fill-mode animations whose
+   active window straddles the font-load repaint — title, tagline and the
+   first row held their from-state (opacity 0) forever. A dropped or canceled
+   transition snaps to its target value instead, so the worst failure here is
+   an instant reveal, never invisible content. */
+.archive-inner .boot {
+  opacity: 0;
 }
 
-@keyframes boot-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.archive-inner.booted .boot {
+  opacity: 1;
+  transition: opacity 0s;
+  transition-delay: calc(var(--i, 0) * 95ms);
 }
 
 .blink {
@@ -362,8 +361,8 @@ a.archive-row:active .row-idx {
 --------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .boot {
-    animation-delay: 0s;
+  .archive-inner.booted .boot {
+    transition: none;
   }
 
   .crt-dom::before {
