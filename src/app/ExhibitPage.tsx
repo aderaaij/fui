@@ -136,6 +136,9 @@ function SoundToggle() {
   return (
     <button
       type="button"
+      aria-label={muted ? 'Sound: off' : 'Sound: on'}
+      title={muted ? 'SOUND: OFF' : 'SOUND: ON'}
+      aria-pressed={!muted}
       onClick={(e) => {
         // Return focus to the exhibit — terminals listen on window
         e.currentTarget.blur()
@@ -143,7 +146,49 @@ function SoundToggle() {
         setMutedState(!muted)
       }}
     >
-      {muted ? 'SOUND: OFF' : 'SOUND: ON'}
+      <SpeakerIcon muted={muted} />
     </button>
+  )
+}
+
+/** The TV-OSD speaker, laid out on a pixel grid so it reads as terminal
+ *  type rather than an app glyph: waves when live, the blocky X when
+ *  muted. currentColor keeps the hover inversion working. */
+function SpeakerIcon({ muted }: { muted: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 12 8"
+      width="1.5em"
+      height="1em"
+      fill="currentColor"
+      shapeRendering="crispEdges"
+      aria-hidden
+      style={{ verticalAlign: '-0.15em' }}
+    >
+      <path d="M0 2h2l3-2v8l-3-2H0z" />
+      {muted ? (
+        <>
+          <rect x="6" y="2" width="1" height="1" />
+          <rect x="9" y="2" width="1" height="1" />
+          <rect x="7" y="3" width="1" height="1" />
+          <rect x="8" y="3" width="1" height="1" />
+          <rect x="7" y="4" width="1" height="1" />
+          <rect x="8" y="4" width="1" height="1" />
+          <rect x="6" y="5" width="1" height="1" />
+          <rect x="9" y="5" width="1" height="1" />
+        </>
+      ) : (
+        <>
+          <rect x="6" y="2" width="1" height="1" />
+          <rect x="7" y="3" width="1" height="2" />
+          <rect x="6" y="5" width="1" height="1" />
+          <rect x="8" y="0" width="1" height="1" />
+          <rect x="9" y="1" width="1" height="1" />
+          <rect x="10" y="2" width="1" height="4" />
+          <rect x="9" y="6" width="1" height="1" />
+          <rect x="8" y="7" width="1" height="1" />
+        </>
+      )}
+    </svg>
   )
 }
