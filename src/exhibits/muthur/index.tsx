@@ -117,7 +117,7 @@ export default function MuthurExhibit() {
 
 function Effects() {
   const crt = useCRTParams("greenPhosphor");
-  const smear = useSmearParams();
+  const smear = useSmearParams("muthur");
   return (
     // multisampling defaults to 8x MSAA — pure cost here: the scene is SDF
     // text and axis-aligned quads, and the CRT pass resamples the whole

@@ -7,11 +7,16 @@ import { crtPresets, type CRTPresetName } from './presets'
  * A preset's values, exposed as live Leva controls for tuning against
  * reference screenshots. The panel is hidden in production builds
  * (see <Leva hidden> in ExhibitPage).
+ *
+ * The folder is keyed by preset: Leva's store is global and keyed by
+ * path, so two exhibits sharing a 'crt' folder would inherit each
+ * other's values across navigation — the second mount reads whatever
+ * the first left at those paths instead of its own preset.
  */
 export function useCRTParams(preset: CRTPresetName): CRTParams {
   const base = crtPresets[preset]
   return useControls(
-    'crt',
+    `crt · ${preset}`,
     {
       curvature: { value: base.curvature, min: 1.5, max: 20, step: 0.1 },
       scanlineIntensity: { value: base.scanlineIntensity, min: 0, max: 1 },
@@ -28,11 +33,24 @@ export function useCRTParams(preset: CRTPresetName): CRTParams {
   )
 }
 
-/** Horizontal smear defaults as live Leva controls (dev only). */
-export function useSmearParams(): SmearParams {
-  return useControls('smear', {
-    intensity: { value: smearDefaults.intensity, min: 0, max: 4 },
-    threshold: { value: smearDefaults.threshold, min: 0, max: 3 },
-    length: { value: smearDefaults.length, min: 0, max: 0.4 },
-  })
+/**
+ * Horizontal smear params as live Leva controls (dev only). An exhibit
+ * passes its name and (optionally) its own defaults — the pass is shared,
+ * the look is not, and the folder is keyed by exhibit for the same
+ * store-collision reason as the CRT presets above.
+ */
+export function useSmearParams(
+  scope: string,
+  defaults?: Partial<SmearParams>,
+): SmearParams {
+  const base = { ...smearDefaults, ...defaults }
+  return useControls(
+    `smear · ${scope}`,
+    {
+      intensity: { value: base.intensity, min: 0, max: 4 },
+      threshold: { value: base.threshold, min: 0, max: 3 },
+      length: { value: base.length, min: 0, max: 0.4 },
+    },
+    [scope],
+  )
 }
