@@ -38,7 +38,7 @@ src/
   lib/
     crt/         # CRT emulation pass + presets (greenPhosphor, amberPhosphor, colorTube)
     terminal/    # boot sequences, cursor blink — shared terminal primitives
-  assets/fonts/  # self-hosted (VT323, OFL license)
+  assets/fonts/  # self-hosted (VT323, Graduate, DSEG14 — all OFL)
   styles/        # global chrome styles incl. DOM-side CRT treatment
 ```
 
@@ -74,11 +74,16 @@ Accuracy work = tuning a preset against film screenshots with the Leva panel
 ## Roadmap
 
 - [x] M0 — shell, registry, CRT pipeline, archive index
-- [ ] M1 — MU/TH/UR 6000 (*Alien*): full inquiry session, sound, accuracy pass
-- [ ] M2 — second exhibit of a *different* type (Gullfire wireframe nav or
-      Predator thermal) to prove the architecture generalizes
-- [ ] Sound design pass (CRT hum, keys) + global mute
-- [ ] Boot-screen index experience (the chrome is itself a FUI)
+- [x] M1 — MU/TH/UR 6000 (*Alien*): full inquiry session (scripted table +
+      live Worker endpoint), sound, accuracy pass — plus a macOS screensaver
+      build of her attract loop
+- [x] M2 — second exhibit of a different type: Gullfire wireframe nav
+      (*Escape from New York*) — survey-built Manhattan, live-flown HUD,
+      looped film audio
+- [x] Sound design pass (film-cut cues and beds) + global mute in the chrome
+- [x] Boot-screen index experience (the chrome is itself a FUI)
+- [ ] M3 — the restoration queue: Predator bio-helmet thermal, T-800 vision,
+      Expanse hand terminal
 
 ## Research
 
@@ -91,5 +96,5 @@ Accuracy work = tuning a preset against film screenshots with the Leva panel
 ## Legal
 
 Fan preservation work. All referenced properties belong to their respective
-studios. VT323 is used under the SIL Open Font License (see
-`src/assets/fonts/OFL.txt`).
+studios. VT323, Graduate and DSEG14 are used under the SIL Open Font License
+(see the `OFL.txt` next to each face in `src/assets/fonts/`).
