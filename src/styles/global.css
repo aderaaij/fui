@@ -151,7 +151,7 @@ button:hover {
 --------------------------------------------------------------------------- */
 
 .archive-inner {
-  max-width: 96ch;
+  max-width: 112ch;
   min-height: 100%;
   margin: 0 auto;
   padding: clamp(1.5rem, 5vh, 4rem) clamp(1.25rem, 4vw, 3rem);
