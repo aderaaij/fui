@@ -529,6 +529,18 @@ const MATRIX_FIT =
 const LINE_H = 1.42;
 const MAX_PITCH = 2.2;
 
+// The film's monitor is 4:3 — the glyph canvas already renders that way.
+// Landscape glass keeps filling the margined frame as the archive always
+// has, but glass narrower than 4:3 confines every screen to this centered
+// tube, so the exhibit reads as one monitor floating mid-screen instead of
+// content pinned across a tall strip.
+const TUBE_ASPECT = 3 / 4;
+function useTube(margin: number) {
+  const viewport = useThree((s) => s.viewport);
+  const w = viewport.width * margin;
+  return { w, h: Math.min(viewport.height * margin, w * TUBE_ASPECT) };
+}
+
 // Pure red is the CRT pass's marker ink: it prints as clean white with no
 // bloom or smear — the selection rule stays a crisp straight line
 const RULE_COLOR = new Color(1, 0, 0);
@@ -577,13 +589,11 @@ function MatrixScreen({
   const sizePx = useThree((s) => s.size);
   /** World units per device-independent pixel */
   const px = viewport.height / sizePx.height;
-  const availW = viewport.width * 0.88;
-  const availH = viewport.height * 0.88;
+  const { w: availW, h: availH } = useTube(0.88);
   const contentW = availW / STRETCH;
   // Height-bound on landscape tubes (the film's framing); width-bound on
-  // portrait, where the height headroom instead opens the row pitch — the
-  // rows stay legible and make honest touch targets rather than huddling
-  // in a band at the top of the tube
+  // portrait, where the row pitch opens just enough for the grid to fill
+  // the 4:3 tube — rows stay legible and make honest touch targets
   const fontSize = Math.min(availH / (ROWS * LINE_H), contentW / MATRIX_FIT);
   const pitch = Math.min(MAX_PITCH, Math.max(LINE_H, availH / (ROWS * fontSize)));
   const rowH = fontSize * pitch;
@@ -713,9 +723,7 @@ const BLOCK_SLOTS = 6;
  * own position; the hot blocks are quads since Graduate has no █ glyph.
  */
 function StormScreen({ fragments }: { fragments: StormFragment[] }) {
-  const viewport = useThree((s) => s.viewport);
-  const availW = viewport.width * 0.9;
-  const availH = viewport.height * 0.9;
+  const { w: availW, h: availH } = useTube(0.9);
   const contentW = availW / STRETCH;
   const cellW = contentW / COLS;
   const rowH = availH / ROWS;
@@ -986,16 +994,17 @@ function TerminalScreen({
   const viewport = useThree((s) => s.viewport);
   const sizePx = useThree((s) => s.size);
   const [activeW, setActiveW] = useState(0);
-  const availW = viewport.width * 0.9;
-  const availH = viewport.height * 0.9;
+  const { w: availW, h: availH } = useTube(0.9);
   const contentW = availW / STRETCH;
   const fontSize = Math.min(availH / (ROWS * 1.42), contentW / 43);
   const rowH = fontSize * 1.42;
-  // Headroom above the session, like the film's — also clears the HUD.
-  // The HUD is fixed px while the type scales with the tube, so on narrow
-  // screens (tiny width-bound type) the film's headroom alone won't clear
-  // it: floor the pad at the HUD's height.
-  const topPad = Math.max(rowH * 1.6, (56 * viewport.height) / sizePx.height);
+  // Headroom above the session, like the film's — also clears the DOM HUD,
+  // which is fixed px while the type scales with the tube: pad out whatever
+  // of the HUD's height reaches past the tube's top edge. A centered tube
+  // on portrait glass already floats well below it and pads nothing.
+  const hudWorld = (56 * viewport.height) / sizePx.height;
+  const tubeTop = (viewport.height - availH) / 2;
+  const topPad = Math.max(rowH * 1.6, hudWorld - tubeTop);
   const activeY = -topPad - rowH * lines.length;
 
   return (
@@ -1054,23 +1063,20 @@ const STREAK_HEIGHTS: Record<Streak["kind"], number> = {
 
 /** The film's horizontal phosphor smears — bright quads fed to Bloom. */
 function Streaks({ streaks }: { streaks: Streak[] }) {
-  const viewport = useThree((s) => s.viewport);
+  const tube = useTube(1);
   return (
     <group>
       {streaks.map((s) => (
         <mesh
           key={s.id}
           position={[
-            (s.x + s.w / 2 - 0.5) * viewport.width,
-            (0.5 - s.y) * viewport.height,
+            (s.x + s.w / 2 - 0.5) * tube.w,
+            (0.5 - s.y) * tube.h,
             0.1,
           ]}
         >
           <planeGeometry
-            args={[
-              s.w * viewport.width,
-              STREAK_HEIGHTS[s.kind] * viewport.height,
-            ]}
+            args={[s.w * tube.w, STREAK_HEIGHTS[s.kind] * tube.h]}
           />
           <meshBasicMaterial
             color={STREAK_COLORS[s.kind]}
