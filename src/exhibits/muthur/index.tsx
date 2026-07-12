@@ -56,6 +56,12 @@ const LINE_HOLD_MS = 140;
 const PRINT_FLASH_MS = 90;
 const PRINT_COLLAPSE_MS = 120;
 const PRINT_LEAD_MS = PRINT_FLASH_MS + PRINT_COLLAPSE_MS;
+// ENTER on a dead address answers with a refusal: the select tick stutters
+// twice and the rule blinks out in step. The film never shows a wrong pick —
+// Ripley goes straight to 2037 — but silence here reads as a hang.
+const DENY_BEAT_MS = 90;
+const DENY_BLINK_MS = 60;
+const DENY_TICK_GAIN = 0.35;
 
 // Direct visits carry no user activation, so the boot would play silent —
 // hold it behind a power switch instead. Arrivals from the archive index
@@ -256,6 +262,18 @@ function Terminal({
   const [selIndex, setSelIndex] = useState(0);
   const selRef = useRef(0);
 
+  // The refusal. A stray second tick after dispose is harmless — playSfx
+  // no-ops once the context is gone.
+  const [denyKick, setDenyKick] = useState(0);
+  const deny = useCallback(() => {
+    setDenyKick((k) => k + 1);
+    playSfx("selectMove", DENY_TICK_GAIN);
+    window.setTimeout(
+      () => playSfx("selectMove", DENY_TICK_GAIN),
+      DENY_BEAT_MS,
+    );
+  }, []);
+
   useEffect(() => {
     if (phase !== "select") return;
     const count = MATRIX_ROWS.length * 2;
@@ -266,13 +284,14 @@ function Terminal({
         selRef.current = (selRef.current + step) % count;
         setSelIndex(selRef.current);
         playSfx("selectMove", 0.4);
-      } else if (e.key === "Enter" && selRef.current === INTERFACE_ROW) {
-        chooseInterface();
+      } else if (e.key === "Enter" && !e.repeat) {
+        if (selRef.current === INTERFACE_ROW) chooseInterface();
+        else deny();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [phase, chooseInterface]);
+  }, [phase, chooseInterface, deny]);
 
   // Touch screens select by tap instead: one tap walks the rule to that
   // address, a second tap on the live address opens it. Desktop keeps the
@@ -281,13 +300,14 @@ function Terminal({
     (index: number) => {
       if (index === selRef.current) {
         if (index === INTERFACE_ROW) chooseInterface();
+        else deny();
         return;
       }
       selRef.current = index;
       setSelIndex(index);
       playSfx("selectMove", 0.4);
     },
-    [chooseInterface],
+    [chooseInterface, deny],
   );
 
   // --- inquiry session ----------------------------------------------------
@@ -463,6 +483,7 @@ function Terminal({
             reveal={boot.matrix}
             phase={phase}
             selIndex={selIndex}
+            denyKick={denyKick}
             onPick={coarse && phase === "select" ? pickAddress : undefined}
           />
         </Suspense>
@@ -578,6 +599,7 @@ function MatrixScreen({
   reveal,
   phase,
   selIndex,
+  denyKick,
   onPick,
 }: {
   reveal: MatrixReveal;
@@ -586,6 +608,8 @@ function MatrixScreen({
     "resolve" | "stable" | "select" | "chosen" | "solo"
   >;
   selIndex: number;
+  /** Bumped per refused ENTER; the rule blinks in step with the ticks */
+  denyKick: number;
   /** Tap-to-select, passed only on coarse-pointer devices */
   onPick?: (index: number) => void;
 }) {
@@ -619,6 +643,23 @@ function MatrixScreen({
       return cell.slice(0, revealed);
     }).join("\n"),
   );
+
+  // The refusal blink: two dark gaps in the rule, one opening on each tick.
+  // A re-refusal mid-blink restarts it — the cleanup clears the old timers.
+  const [ruleOff, setRuleOff] = useState(false);
+  useEffect(() => {
+    if (!denyKick) return;
+    setRuleOff(true);
+    const timers = [
+      window.setTimeout(() => setRuleOff(false), DENY_BLINK_MS),
+      window.setTimeout(() => setRuleOff(true), DENY_BEAT_MS),
+      window.setTimeout(() => setRuleOff(false), DENY_BEAT_MS + DENY_BLINK_MS),
+    ];
+    return () => {
+      timers.forEach((t) => window.clearTimeout(t));
+      setRuleOff(false);
+    };
+  }, [denyKick]);
 
   // Rule geometry: label start through value end of the selected pair,
   // in whichever address column the selection has walked into
@@ -656,7 +697,7 @@ function MatrixScreen({
           ))}
         </>
       )}
-      {phase === "select" && (
+      {phase === "select" && !ruleOff && (
         <mesh
           position={[
             ruleX + ruleW / 2,
